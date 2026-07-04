@@ -350,32 +350,48 @@ def optimize_image_bytes(data, ext):
     return data, ext
 
 
-def make_og_image():
-    """Simple branded social card at /og.png. No-op if Pillow is missing."""
+def _og_font(size):
+    from PIL import ImageFont
+    for f in ["/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
+              "/System/Library/Fonts/Supplemental/Georgia.ttf",
+              "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"]:
+        if os.path.exists(f):
+            return ImageFont.truetype(f, size)
+    return None
+
+
+def make_og_image(title=None, out_name="og.png"):
+    """Branded social card; per-post cards render the post title.
+
+    Returns the card's site-relative path, or None if Pillow/fonts missing.
+    """
     try:
-        from PIL import Image, ImageDraw, ImageFont
+        from PIL import Image, ImageDraw
     except ImportError:
         return None
-    fonts = ["/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
-             "/System/Library/Fonts/Supplemental/Georgia.ttf",
-             "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"]
-    big = small = None
-    for f in fonts:
-        if os.path.exists(f):
-            big = ImageFont.truetype(f, 78)
-            small = ImageFont.truetype(f, 34)
-            break
-    if not big:
+    import textwrap
+    small = _og_font(34)
+    if not small:
         return None
     im = Image.new("RGB", (1200, 630), "#1d2b45")
     d = ImageDraw.Draw(im)
     d.rectangle([0, 0, 1200, 8], fill="#8db4e8")
-    d.text((80, 240), "Hauke Hillebrandt", font=big, fill="#faf9f6")
-    d.text((84, 350), "Essays on AI, economic growth, and global priorities",
-           font=small, fill="#9fb3d1")
-    path = os.path.join(DIST, "og.png")
+    if title:
+        lines = textwrap.wrap(title, width=30)[:4]
+        font = _og_font(64 if len(lines) <= 3 else 56)
+        y = 315 - 42 * len(lines)
+        for line in lines:
+            d.text((80, y), line, font=font, fill="#faf9f6")
+            y += 84
+        d.text((84, 520), "Hauke Hillebrandt", font=small, fill="#9fb3d1")
+    else:
+        d.text((80, 240), "Hauke Hillebrandt", font=_og_font(78), fill="#faf9f6")
+        d.text((84, 350), "Essays on AI, economic growth, and global priorities",
+               font=small, fill="#9fb3d1")
+    path = os.path.join(DIST, out_name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path, "PNG", optimize=True)
-    return path
+    return out_name
 
 
 def build_rss(all_items, site):
@@ -499,6 +515,13 @@ def build():
             post["excerpt"] = excerpt_from_export(export_html, post["title"])
         reader_link = (f'<a class="btn" href="reader/{post["slug"]}">Reader view</a>'
                        if post["has_reader"] else "")
+        og_rel = make_og_image(post["title"], f"og/{post['slug']}.png") or "og.png"
+        jsonld = json.dumps({
+            "@context": "https://schema.org", "@type": "Article",
+            "headline": post["title"], "datePublished": post["date"],
+            "author": {"@type": "Person", "name": site["author"]},
+            "mainEntityOfPage": f"{BASE_URL}/{post['slug']}",
+        })
         page = render(post_tpl,
                       SITE_TITLE=esc(site["title"]),
                       TITLE=esc(post["title"]),
@@ -508,7 +531,8 @@ def build():
                       EMBED_URL=doc_embed_url(post),
                       DOC_URL=doc_open_url(post),
                       READER_LINK=reader_link,
-                      OG_IMAGE=f"{BASE_URL}/og.png",
+                      OG_IMAGE=f"{BASE_URL}/{og_rel}",
+                      JSONLD=f'<script type="application/ld+json">{jsonld}</script>',
                       NAV=nav)
         open(os.path.join(DIST, f"{post['slug']}.html"), "w").write(page)
         if export_html:
@@ -523,7 +547,7 @@ def build():
                   DESCRIPTION=esc(site["description"]),
                   CANONICAL=f"{BASE_URL}/cv", DATE="",
                   EMBED_URL=doc_embed_url(cv), DOC_URL=doc_open_url(cv),
-                  READER_LINK="", OG_IMAGE=f"{BASE_URL}/og.png", NAV=nav)
+                  READER_LINK="", OG_IMAGE=f"{BASE_URL}/og.png", JSONLD="", NAV=nav)
     open(os.path.join(DIST, "cv.html"), "w").write(page)
 
     # ---- homepage
@@ -588,12 +612,16 @@ def build():
         f'<!doctype html><meta http-equiv="refresh" content="0;url={BASE_URL}/">')
     open(os.path.join(DIST, "robots.txt"), "w").write(
         f"User-agent: *\nAllow: /\nSitemap: {BASE_URL}/sitemap.xml\n")
-    urls = [f"{BASE_URL}/"] + [f"{BASE_URL}/{p['slug']}" for p in posts.values()] + \
-           [f"{BASE_URL}/reader/{p['slug']}" for p in posts.values() if p.get("has_reader")] + \
-           [f"{BASE_URL}/cv"]
+    urls = [(f"{BASE_URL}/", None), (f"{BASE_URL}/cv", None)]
+    for p in posts.values():
+        urls.append((f"{BASE_URL}/{p['slug']}", p["date"]))
+        if p.get("has_reader"):
+            urls.append((f"{BASE_URL}/reader/{p['slug']}", p["date"]))
     sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n' \
               '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + \
-              "\n".join(f"  <url><loc>{esc(u)}</loc></url>" for u in urls) + "\n</urlset>\n"
+              "\n".join(f"  <url><loc>{esc(u)}</loc>"
+                        + (f"<lastmod>{d}</lastmod>" if d else "") + "</url>"
+                        for u, d in urls) + "\n</urlset>\n"
     open(os.path.join(DIST, "sitemap.xml"), "w").write(sitemap)
 
     open(os.path.join(DIST, "feed.xml"), "w").write(build_rss(all_items, site))

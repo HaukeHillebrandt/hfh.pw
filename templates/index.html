@@ -53,8 +53,16 @@
 
 <footer class="wrap">
   <p>Essays open as live Google Docs — click “Open in Google Docs” on any page to comment.
-     Last updated {{UPDATED}}. <a href="https://github.com/HaukeHillebrandt/hfh.pw">Source</a>.</p>
+     Last updated {{UPDATED}}. <a href="feed.xml">RSS</a> ·
+     <a href="https://github.com/HaukeHillebrandt/hfh.pw">Source</a>.</p>
 </footer>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Person","name":"Hauke Hillebrandt",
+ "url":"{{CANONICAL}}","jobTitle":"Researcher",
+ "alumniOf":"University College London",
+ "sameAs":["https://hauke.substack.com","https://github.com/HaukeHillebrandt",
+           "https://lets-fund.org"]}
+</script>
 <script src="app.js"></script>
 </body>
 </html>
