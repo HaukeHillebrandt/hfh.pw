@@ -52,6 +52,31 @@ def fetch(url, timeout=30, retries=2, binary=False):
     raise last
 
 
+CACHE_DIR = os.path.join(ROOT, "data", "cache")
+
+
+def cached_fetch(name, url):
+    """Network-first fetch with a committed fallback cache.
+
+    Some feeds (Substack) block GitHub Actions runner IPs; the cache keeps
+    the site complete when that happens and refreshes whenever a fetch works.
+    """
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    path = os.path.join(CACHE_DIR, name)
+    try:
+        body = fetch(url)
+        if "<item>" in body or "<entry>" in body or "flip-entry" in body:
+            with open(path, "w") as f:
+                f.write(body)
+            return body
+        raise ValueError("response has no feed items (blocked?)")
+    except Exception as e:  # noqa: BLE001
+        if os.path.exists(path):
+            warn(f"{name}: live fetch failed ({e}); using committed cache")
+            return open(path).read()
+        raise
+
+
 def template(name):
     return open(os.path.join(ROOT, "templates", name)).read()
 
@@ -75,7 +100,8 @@ def slugify(title):
 # ---------------------------------------------------------------- sources
 
 def fetch_drive_folder(fid):
-    src = fetch(f"https://drive.google.com/embeddedfolderview?id={fid}#list")
+    src = cached_fetch(f"drive_{fid}.html",
+                       f"https://drive.google.com/embeddedfolderview?id={fid}#list")
     out = []
     for chunk in src.split('<div class="flip-entry" ')[1:]:
         eid = re.search(r'id="entry-([^"]+)"', chunk)
@@ -249,14 +275,14 @@ def collect_posts():
     print("Fetching feeds…")
     external = []
     try:
-        for it in parse_rss(fetch(CONFIG["feeds"]["substack"])):
+        for it in parse_rss(cached_fetch("substack.xml", CONFIG["feeds"]["substack"])):
             if it["url"].rstrip("/") == "https://hauke.substack.com":
                 continue
             external.append({**it, "source": "substack"})
     except Exception as e:  # noqa: BLE001
         warn(f"substack feed failed: {e}")
     try:
-        for it in parse_rss(fetch(CONFIG["feeds"]["bearblog"])):
+        for it in parse_rss(cached_fetch("bearblog.xml", CONFIG["feeds"]["bearblog"])):
             external.append({**it, "source": "note"})
     except Exception as e:  # noqa: BLE001
         warn(f"bearblog feed failed: {e}")
@@ -411,7 +437,7 @@ def build():
         ext = ' target="_blank" rel="noopener"' if it["external"] else ""
         date_disp = month_year(it["date"]) if it["date"] else ""
         if not it["date_exact"]:
-            date_disp = f'<span title="Approximate — last modified date">{date_disp}</span>'
+            date_disp = f'<span title="Last modified date">upd. {date_disp}</span>'
         excerpt = f'<p class="excerpt">{esc(it["excerpt"])}</p>' if it.get("excerpt") else ""
         rows.append(
             f'<li class="post" data-source="{badge}" data-title="{esc(it["title"].lower())}">'

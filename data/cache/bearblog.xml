@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/" version="2.0">
+  <channel>
+    <title>Hauke's blog</title>
+    <link>https://hauke.bearblog.dev</link>
+    <description>I would like to abuse my lungs&#13;
+Smoke everything in sight with every girl I've ever loved&#13;
+Ride around the wreckage on a horse knee-deep in blood&#13;
+Look out, ...</description>
+    <atom:link href="https://hauke.bearblog.dev/feed/?type=rss" rel="self" type="application/rss+xml"/>
+    <docs>http://www.rssboard.org/rss-specification</docs>
+    <generator>python-feedgen</generator>
+    <lastBuildDate>Sat, 04 Jul 2026 08:50:34 +0000</lastBuildDate>
+    <item>
+      <title>Vicious cycle effects should undermine belief in free will</title>
+      <link>https://hauke.bearblog.dev/vicious-cycle-effects-should-undermine-belief-in-free-will/</link>
+      <description>&lt;p&gt;&lt;em&gt;A follow-up on free will, feedback loops, and why effort isn't the clean lever we think it is&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a href='https://www.hfh.pw/free-will'&gt;Last time&lt;/a&gt; I argued that a lot of what we praise and blame people for, their grades, their income, their waistlines, traces back to things they never chose: their genes, their birth date, the zip code they grew up in. Here's the part that makes the free-will problem worse. Disadvantages don't sit still. They compound. The state you're in starts producing the very thing that keeps you in it.&lt;/p&gt;
+&lt;p&gt;Take testosterone and body fat. Endocrinologists even have a name for the loop: the hypogonadal–obesity cycle. Fat tissue is loaded with aromatase, an enzyme that converts testosterone into estrogen, so the more fat you carry the more testosterone you lose. Low testosterone then does its own damage. It parks fat around the abdomen, eats into muscle, and saps the energy and drive you'd need to train it off. More fat, less testosterone, less muscle, less will, more fat. Round and round.&lt;/p&gt;
+&lt;p&gt;Figure 1 in this &lt;a href='https://annas-archive.gl/scidb/10.1111/obr.12282/'&gt;paper&lt;/a&gt;) has a crazy scatterplot showing total testosterone increase rising with percentage of body weight lost across nine studies - with large effect sizes.&lt;/p&gt;
+&lt;p&gt;The figure shows the hopeful half. Lose weight and testosterone climbs back, roughly in step with how much you shed. The men at the top right, who lost about a third of their body weight through bariatric surgery, got the biggest rebound. So the loop breaks. But look at what breaking it asks of you: row hard upstream against a current your own body is generating, using the energy that current is busy draining.&lt;/p&gt;
+&lt;p&gt;Poverty has the same shape. In a &lt;a href='https://www.science.org/doi/10.1126/science.1238041'&gt;2013 study&lt;/a&gt;, researchers tested the same Indian sugarcane farmers twice, once before harvest when they were broke and once after when they'd been paid. The same men scored noticeably higher after harvest, on the order of nine or ten IQ points, a gap comparable to a sleepless night. The reasoning is that worrying about money is itself cognitively expensive: it eats the mental bandwidth you'd otherwise spend on planning and self-control. There's the trap. Poverty taxes the exact faculty you need to climb out of it. (In fairness, the flashier lab versions of this "scarcity" effect have taken a &lt;a href='https://www.pnas.org/doi/10.1073/pnas.2103313118'&gt;beating in replication fights&lt;/a&gt;, though the harvest result is the sturdier leg of the story.)&lt;/p&gt;
+&lt;p&gt;This is why a feedback loop is nastier for free will than a bad starting hand. A bad start is a one-time disadvantage you might, with effort, overcome. A vicious cycle goes after the effort itself. "Just try harder" assumes the trying is sitting there available, when the whole problem is that your situation has quietly confiscated it.&lt;/p&gt;
+&lt;p&gt;Which is roughly where I landed last time. For policy, plan around the loops and break them structurally, rather than scolding people for failing to out-will their own biochemistry or bank balance. In person, by all means keep telling your kid to study. Just don't confuse the pep talk for a theory of how the world works.&lt;/p&gt;
+</description>
+      <author>hidden (hauke)</author>
+      <guid isPermaLink="false">https://hauke.bearblog.dev/vicious-cycle-effects-should-undermine-belief-in-free-will/</guid>
+      <pubDate>Mon, 08 Jun 2026 12:02:59 +0000</pubDate>
+    </item>
+    <item>
+      <title>Don't torture your innie</title>
+      <link>https://hauke.bearblog.dev/dont-torture-your-innie/</link>
+      <description>&lt;p&gt;Have you seen that show Severance? No? Doesn't matter, it's mid, but it does have a very interesting central metaphor:&lt;/p&gt;
+&lt;p&gt;In the show, people invented a new technology to separate / sever the memories of yourself into to different personas, so that one can go and do your work and not have any recall of how your life outside of work looks and 'you', the person who can enjoy all the leisure time can not remember what happens at work. So it's a neoliberal pipedream ha, but there's something deeper about some sort of Parfitian notion of how we relate to the nature of identity... in the sense that we can have different selves in ourselves and the different selves can have special continious qualites.&lt;/p&gt;
+&lt;p&gt;Alright this is getting messy: what I'm saying is: I'm writing this post with the 'most dangerous writing app' or squibbler that deletes all my words if I don't continue typing on a Monday moring at 7:30AM in order to hit the Foreverhaven deadline, where post-Inkhaven you have to write 500 days a week by midnight California time (because that's the center of the world in these Americanocentric days), and the THING IS:
+There is a steady and continious sense of my Monday morning personality: The Hauke of Monday morning is a special case of your morning self, who just had a weekend. There's even more continuity between your morning selves. This might sound schizo, but here me out. This is actually in line with IFS, or internal family systems which is all the rage, these days, and I don't really make any claims of how good a modality it is, but it's not really a new claim that we have different personalities, drives, etc in ourselves. And also in neuroscience, there's a bunch of evidence that we do certain things subconsciously (cf. split brain patients).&lt;/p&gt;
+&lt;p&gt;Well anyway you might say: what do I care? Split brain patient really? I haven't had a hemispheriectomy (sp?)? Why should this apply to me?&lt;/p&gt;
+&lt;p&gt;Well, there are different selves within you too, they're just not as binary and pronounced, like your morning self, or your evening self, or your Monday morning, or your post-gym self, who's bathing in endorphins, or the pre-gym self, or the gym self, who has lift of weights, or your making love self, whatever, you get the point.&lt;/p&gt;
+&lt;p&gt;Well, now this has implications for how to conduct your life:&lt;/p&gt;
+&lt;p&gt;For instance: don't create too strict a routine that tortures your monday morning self that under pressure has to write 500 words every monday morning and not have any time of. Don't torture that innie. All work and no play makes your monday morning self a dull boy. So sometimes you give your morning self a day off. It's called weekends and they've culturally evolved for a reason. If you don't take time off, then your selves might rebel and you'll start procrastinating or burnout, if you push any of your selves too hard.&lt;/p&gt;
+</description>
+      <author>hidden (hauke)</author>
+      <guid isPermaLink="false">https://hauke.bearblog.dev/dont-torture-your-innie/</guid>
+      <pubDate>Mon, 18 May 2026 06:43:59 +0000</pubDate>
+    </item>
+    <item>
+      <title>don't act as if it's oh-s0-overdetermined</title>
+      <link>https://hauke.bearblog.dev/dont-act-as-if-its-oh-s0-overdetermined/</link>
+      <description>&lt;p&gt;People act as if it's oh-so-overdetermined&lt;/p&gt;
+&lt;p&gt;One general stance that I perceive in the AI x-risk community is that there's still a general vibe that p(doom) is very high and timelines are very short. I'm not saying that these people are necessarily wrong, but they do come across as somewhat arrogant and also they're making these really Big, if true claims and do provide extraordinary evidence for their extraordinary claims. They often act as if AGI, RSI, and so on, are overdetermined from here on. It seems like they do not really engage with counterarguments in good faith. If you say: "where's all the AI stuff? Like, what concretely has AI done so far? There hasn't really been that much really revolutionary stuff that has come out of LLMs.'&lt;/p&gt;
+&lt;p&gt;'BUT HAVE YOU EVEN USED THE LATEST MODEL?'&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;yes I have, and so have many peopl
+"BUT DON'T YOU KNOW ABOUT MOORE'S LAW? THIS IS THE WORST AI WILL EVER BE!'&lt;/li&gt;
+&lt;li&gt;yes, I get it, it's gonna get better, but it's still not that good right now.
+"YOU NEED TO UPDATE ALL THE WAY BRO! IT HAS GOTTEN BETTER BEFORE, AND IT'LL KEEP GETTING BETTER. DIDN'T YOU SEE THIS METR THING.'&lt;/li&gt;
+&lt;li&gt;yeah but if AI can now do 10h of work for you, for a dollar or something how come METR is so poor?
+"BUT DON'T YOU KNOW THEY CAN MAKE BIOWEAPONS?"
+-yeah but humans can make bioweapons and it's just like 50k deaths in expectation / year, it's not that we shouldn't look into it, and there are certaintly other threat vectors, and they add up and so it's tots on the level of climate change or even above in terms of prioritization, and listen, this is now a huge industry, a huge chunk of S&amp;P500, obviousl y a  we should expect such an industry to have major externalities like any other of that size, but that doesn't really prove the point.
+"BUT DON'T YOU GET THAT IT'S RECURSIVELY SELF-IMPROVING? HAVEN'T YOU USED CLAUDE CODE? THE MOST RECENT VERSION OF MAX THINKING ENABLED?"&lt;/li&gt;
+&lt;li&gt;yes I have, but it seems like it's still making lots of mistakes.
+"BUT HAVE YOU USED MYTHOS, THE MYTHY MYTHICAL MODEL BY ANTHROPIC, PROMPT ENGINEERED BY A FEMALE SCOTTISH PHILOSOPHER?"
+well, no I haven't used that but like, if it's so good, how come Anthropic still can't give us like say a good search function on the claude web interface? Like if I put in a search term then it sometimes won't find it. It's just pretty bad. there are so many bugs.
+"BUT IT CAN WRITE REALLY GOOD EXPLOITS AND CAN'T EVEN BE RELEASED TO THE WORLD BECAUSE OF THE EXPLOITS'
+well, but gpt 5.5 was released no? also like why are we talking about this? I'm on board with this already. Like, the threat models that show that AI-enabled cyber offences would create major externalities don't say that this will end the world. Like at most it's gonna be like a grid attack. What are you really saying? I give you that an attack on the grid or something might cause some harm, but it's also not gonna end the world.&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+      <author>hidden (hauke)</author>
+      <guid isPermaLink="false">https://hauke.bearblog.dev/dont-act-as-if-its-oh-s0-overdetermined/</guid>
+      <pubDate>Mon, 11 May 2026 07:00:47 +0000</pubDate>
+    </item>
+    <item>
+      <title>On the nature of consciousness</title>
+      <link>https://hauke.bearblog.dev/shit-post/</link>
+      <description>&lt;p&gt;Hm... okay. Let's see. 500 words. Can't be that hard. I've done it before. I can do it again. Let's go.&lt;/p&gt;
+&lt;p&gt;AI! It's mighty important. totally underrated.&lt;/p&gt;
+&lt;p&gt;Monday morning... 8AM UK time is the foreverhaven deadline. I need to publish something. Crank something out. Produce, not consume. No AI slop!&lt;/p&gt;
+&lt;p&gt;Good that I set up that Bearblog. It's so neat. No one reads this anyway. Hm... I need to write something of timeless elegance. My opus magnum / magnum opus (either is akthually correct).&lt;/p&gt;
+&lt;p&gt;Maybe I'll turn on the coffee shop soundtrack on my cold turkey writer. Just to get some background sounds. It's pretty hard to be alone with your thoughts. What do I hear? Let me zero in mindfully. People talking, coins dropping, people walking. That's pretty much it. Oh just now somehow was chuckling. Is this even a real coffee shop? Probably. When I turn on the Coffee Shop soundtrack in my Cold Turkey Writer (you can pick between that and the Rain Soundtrack), it starts displaying 'Sounds by Coffitivity + Rainy Mood'. Coffitivity huh? It has its own logo and all. Was this a startup? Who came up with this? "You know how you can always really focus when you do work in a cafe? We should start a startup recording coffee shop sounds. Call it coffitivity'.&lt;/p&gt;
+&lt;p&gt;good this is inane, derivative drivel, Hauke. Why don't write something that really matters?&lt;/p&gt;
+&lt;p&gt;Let me hit that lost mary... maybe that'll get the old writing juices flowing. Hm... cherry ice is too sweet and so is triple mango. But it's what I have to work with.&lt;/p&gt;
+&lt;p&gt;Oh here we go, Stretchly ergonomics software is the only thing that can overwrite cold turkey superimposing itself onto my screen for my stretch break and breaking the monotony, telling me: 'Tilt your head to one side, then the other, then forward.' I do it dutifully, YOU SHOULD DO THAT TOO NOW; these stretch breaks are really good, they really break up my day nicely, reminding me to do some stretches, and be mindful and so on, I tried to add more prompts to it using claude code recently but somehow it seems to have overwritten those during the last update now the json seems to have reset, maybe I should write to the Ukrainian developer but he might have more pressing problems rn, maybe this app is on the way out with the new software that'll inevitably come out soon, like 'donethat' which is a new startup by this EA who I was once met, when he was running EA frankfurt and I flew me in for talk that I gave to the EA frankfurt group, but I screwed it up because I had to give it in german and my german was rusty and it was a stutterfest, how shameful, I shouldn't dwell so much on the past, this is getting more unhinged, you're not thomas mann or thomas bernard, not anymore at least, didn't they teach you how to sit down to write 5h in class essay in high-school, not sure if this is something I can ever reactivate.&lt;/p&gt;
+&lt;p&gt;Anyway, the thing about RSI is: coding superintelligence doesn't really help and it's all about algorithmic improvements on the transformer architecture and that's not helped by coding, but frontier math capabilities are probs a better proxy for that. but can you really improve based on the fundamental architecture based on first principles if we do not even have a theory of deep learning or do you have to brute force that with a lot of compute + genetic algorithms? Seems like it. I guess they're solving some erdos problems but then someone on x said they're not actually that hard. I wouldn't know. I guess it's anyone's guess really.&lt;/p&gt;
+&lt;p&gt;What if Dario is right?&lt;/p&gt;
+</description>
+      <author>hidden (hauke)</author>
+      <guid isPermaLink="false">https://hauke.bearblog.dev/shit-post/</guid>
+      <pubDate>Mon, 27 Apr 2026 06:48:00 +0000</pubDate>
+    </item>
+  </channel>
+</rss>
