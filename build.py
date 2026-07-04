@@ -665,6 +665,24 @@ def build():
     make_og_image()
 
     json.dump(report, open(os.path.join(DIST, "build_report.json"), "w"), indent=1)
+
+    # Sanity gate: refuse to ship an obviously broken build (Pages then keeps
+    # serving the previous deploy).
+    essays = sum(1 for i in all_items if i["source"] == "essay")
+    readers = len(os.listdir(os.path.join(DIST, "reader")))
+    problems = []
+    if essays < 40:
+        problems.append(f"only {essays} essays (expected >=40)")
+    if len(all_items) < 60:
+        problems.append(f"only {len(all_items)} posts (expected >=60)")
+    if readers < 40:
+        problems.append(f"only {readers} reader pages (expected >=40)")
+    if os.path.getsize(os.path.join(DIST, "index.html")) < 20_000:
+        problems.append("index.html suspiciously small")
+    if problems:
+        print("BUILD REJECTED: " + "; ".join(problems), file=sys.stderr)
+        sys.exit(1)
+
     pub_count = sum(1 for d in report["docs"].values() if d["published"])
     print(f"Done: {len(all_items)} posts ({pub_count}/{len(report['docs'])} docs published-to-web), "
           f"{len(report['warnings'])} warnings -> dist/")
