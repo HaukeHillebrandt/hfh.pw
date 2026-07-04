@@ -130,7 +130,8 @@ footer { border-top: 1px solid var(--line); }
 footer p { color: var(--muted); font-size: 13.5px; padding: 18px 0 30px; }
 
 /* ---------- doc (post) pages ---------- */
-.doc-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+html:has(.doc-page) { height: 100%; }
+.doc-page { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
 .doc-bar {
   display: flex; align-items: center; gap: 14px;
   padding: 10px 18px; border-bottom: 1px solid var(--line);

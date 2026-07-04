@@ -168,7 +168,7 @@ def parse_rss(xml):
 def probe_doc(doc):
     """Decide embed endpoint for a Google Doc and fetch its exported HTML."""
     did = doc["doc_id"]
-    result = {"published": False, "export_html": None}
+    result = {"published": False, "export_html": None, "restricted": False}
     try:
         body = fetch(f"https://docs.google.com/document/d/{did}/pub", retries=1)
         if 'id="contents"' in body or "doc-content" in body:
@@ -180,6 +180,16 @@ def probe_doc(doc):
             f"https://docs.google.com/document/d/{did}/export?format=html", retries=1)
     except Exception as e:  # noqa: BLE001
         warn(f"no HTML export for '{doc['title']}' ({did}): {e}")
+    if not result["published"] and not result["export_html"]:
+        # Anonymous visitors would hit a Google login wall in the iframe.
+        try:
+            prev = fetch(f"https://docs.google.com/document/d/{did}/preview", retries=0)
+            result["restricted"] = "ServiceLogin" in prev or "accounts.google.com/v3/signin" in prev
+        except Exception:  # noqa: BLE001
+            result["restricted"] = True
+        if result["restricted"]:
+            warn(f"RESTRICTED doc (login wall for visitors): '{doc['title']}' ({did}) "
+                 f"- share it as 'anyone with the link' to fix")
     return result
 
 
@@ -292,6 +302,92 @@ def collect_posts():
 
 # ---------------------------------------------------------------- reader pages
 
+def optimize_image_bytes(data, ext):
+    """Downscale/recompress one image; returns (bytes, ext).
+
+    Screenshots (opaque PNGs) and animated GIFs recompress to WebP at a
+    fraction of the size. Falls back to the original bytes on any failure
+    or when Pillow is unavailable.
+    """
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(data))
+        if getattr(im, "is_animated", False):
+            return data, ext  # transcoding animations is slow; they lazy-load instead
+        buf = io.BytesIO()
+        w, h = im.size
+        if w > 1400:
+            im = im.resize((1400, max(1, round(h * 1400 / w))), Image.LANCZOS)
+        if im.mode == "RGBA" and im.getchannel("A").getextrema()[0] >= 250:
+            im = im.convert("RGB")
+        if im.mode in ("RGBA", "LA", "P"):
+            im.save(buf, "PNG", optimize=True)
+            out_ext = "png"
+            if buf.tell() > 400_000:  # big transparent screenshot: try palette mode
+                qbuf = io.BytesIO()
+                im.quantize(256).save(qbuf, "PNG", optimize=True)
+                if qbuf.tell() < buf.tell() * 0.6:
+                    buf = qbuf
+        else:
+            im.convert("RGB").save(buf, "WEBP", quality=80)
+            out_ext = "webp"
+        out = buf.getvalue()
+        if len(out) < len(data):
+            return out, out_ext
+    except Exception:  # noqa: BLE001 - keep original on any decode issue
+        pass
+    return data, ext
+
+
+def make_og_image():
+    """Simple branded social card at /og.png. No-op if Pillow is missing."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        return None
+    fonts = ["/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
+             "/System/Library/Fonts/Supplemental/Georgia.ttf",
+             "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"]
+    big = small = None
+    for f in fonts:
+        if os.path.exists(f):
+            big = ImageFont.truetype(f, 78)
+            small = ImageFont.truetype(f, 34)
+            break
+    if not big:
+        return None
+    im = Image.new("RGB", (1200, 630), "#1d2b45")
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, 1200, 8], fill="#8db4e8")
+    d.text((80, 240), "Hauke Hillebrandt", font=big, fill="#faf9f6")
+    d.text((84, 350), "Essays on AI, economic growth, and global priorities",
+           font=small, fill="#9fb3d1")
+    path = os.path.join(DIST, "og.png")
+    im.save(path, "PNG", optimize=True)
+    return path
+
+
+def build_rss(all_items, site):
+    items_xml = []
+    for it in all_items[:60]:
+        if not it["date"] or not it["date_exact"]:
+            continue
+        url = it["url"] if it["external"] else f"{BASE_URL}/{it['url']}"
+        desc = esc(it.get("excerpt") or "")
+        items_xml.append(
+            f"  <item>\n    <title>{esc(it['title'])}</title>\n"
+            f"    <link>{esc(url)}</link>\n    <guid isPermaLink=\"false\">{esc(url)}</guid>\n"
+            f"    <pubDate>{datetime.strptime(it['date'], '%Y-%m-%d').strftime('%a, %d %b %Y 00:00:00 GMT')}</pubDate>\n"
+            f"    <description>{desc}</description>\n  </item>")
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<rss version="2.0"><channel>\n'
+            f"  <title>{esc(site['title'])}</title>\n"
+            f"  <link>{BASE_URL}/</link>\n"
+            f"  <description>{esc(site['description'])}</description>\n"
+            + "\n".join(items_xml) + "\n</channel></rss>\n")
+
+
 DATA_URI_RE = re.compile(r'src="data:image/(png|jpe?g|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)"')
 
 
@@ -306,7 +402,10 @@ def externalize_images(html_str):
             data = base64.b64decode(m.group(2))
         except Exception:  # noqa: BLE001
             return m.group(0)
-        name = hashlib.sha1(data).hexdigest()[:16] + "." + ext
+        stem = hashlib.sha1(data).hexdigest()[:16]
+        if ext != "svg":
+            data, ext = optimize_image_bytes(data, ext)
+        name = f"{stem}.{ext}"
         path = os.path.join(img_dir, name)
         if not os.path.exists(path):
             with open(path, "wb") as f:
@@ -333,6 +432,7 @@ def build_reader_page(post, export_html):
                  LIVE_URL=f"../{post['slug']}",
                  DOC_URL=doc_open_url(post))
     out = externalize_images(export_html)
+    out = out.replace("<img ", '<img loading="lazy" decoding="async" ')
     if "</head>" in out:
         out = out.replace("</head>", READER_STYLE_OVERRIDES + "</head>", 1)
     else:
@@ -366,7 +466,8 @@ def build():
             posts[slug]["published"] = r["published"]
             posts[slug]["_export"] = r["export_html"]
             report["docs"][slug] = {"published": r["published"],
-                                    "has_export": bool(r["export_html"])}
+                                    "has_export": bool(r["export_html"]),
+                                    "restricted": r["restricted"]}
 
     # ---- output dir
     if os.path.exists(DIST):
@@ -397,6 +498,7 @@ def build():
                       EMBED_URL=doc_embed_url(post),
                       DOC_URL=doc_open_url(post),
                       READER_LINK=reader_link,
+                      OG_IMAGE=f"{BASE_URL}/og.png",
                       NAV=nav)
         open(os.path.join(DIST, f"{post['slug']}.html"), "w").write(page)
         if export_html:
@@ -411,7 +513,7 @@ def build():
                   DESCRIPTION=esc(site["description"]),
                   CANONICAL=f"{BASE_URL}/cv", DATE="",
                   EMBED_URL=doc_embed_url(cv), DOC_URL=doc_open_url(cv),
-                  READER_LINK="", NAV=nav)
+                  READER_LINK="", OG_IMAGE=f"{BASE_URL}/og.png", NAV=nav)
     open(os.path.join(DIST, "cv.html"), "w").write(page)
 
     # ---- homepage
@@ -483,6 +585,9 @@ def build():
               '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + \
               "\n".join(f"  <url><loc>{esc(u)}</loc></url>" for u in urls) + "\n</urlset>\n"
     open(os.path.join(DIST, "sitemap.xml"), "w").write(sitemap)
+
+    open(os.path.join(DIST, "feed.xml"), "w").write(build_rss(all_items, site))
+    make_og_image()
 
     json.dump(report, open(os.path.join(DIST, "build_report.json"), "w"), indent=1)
     pub_count = sum(1 for d in report["docs"].values() if d["published"])
