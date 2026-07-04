@@ -18,7 +18,31 @@
     <h1>Page not found</h1>
     <p class="bio">This page doesn’t exist (or moved). Try the <a href="{{BASE}}/">homepage</a> —
     everything is listed there.</p>
+    <p class="bio" id="suggestion" hidden>Did you mean <a id="suggestion-link" href=""></a>?</p>
   </section>
 </main>
+<script>
+(function () {
+  var want = location.pathname.split('/').pop().replace(/\.html$/, '').toLowerCase();
+  if (!want) return;
+  fetch('{{BASE}}/posts.json').then(function (r) { return r.json(); }).then(function (posts) {
+    function norm(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, ''); }
+    var w = norm(want), best = null, bestScore = 0;
+    posts.forEach(function (p) {
+      var s = norm(p.slug), t = norm(p.title), score = 0;
+      if (s === w || t === w) score = 3;
+      else if (s.indexOf(w) !== -1 || w.indexOf(s) !== -1) score = 2;
+      else if (t.indexOf(w) !== -1) score = 1;
+      if (score > bestScore) { bestScore = score; best = p; }
+    });
+    if (best) {
+      var a = document.getElementById('suggestion-link');
+      a.href = '{{BASE}}/' + best.slug;
+      a.textContent = best.title;
+      document.getElementById('suggestion').hidden = false;
+    }
+  }).catch(function () {});
+})();
+</script>
 </body>
 </html>

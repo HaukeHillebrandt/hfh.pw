@@ -14,9 +14,14 @@
   }
 
   tabs.forEach(function (t) {
+    t.setAttribute('aria-pressed', t.classList.contains('active') ? 'true' : 'false');
     t.addEventListener('click', function () {
-      tabs.forEach(function (x) { x.classList.remove('active'); });
+      tabs.forEach(function (x) {
+        x.classList.remove('active');
+        x.setAttribute('aria-pressed', 'false');
+      });
       t.classList.add('active');
+      t.setAttribute('aria-pressed', 'true');
       filter = t.dataset.filter;
       apply();
     });

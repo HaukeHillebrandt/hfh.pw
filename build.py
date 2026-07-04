@@ -459,6 +459,9 @@ def build_reader_page(post, export_html):
                  DOC_URL=doc_open_url(post))
     out = externalize_images(export_html)
     out = out.replace("<img ", '<img loading="lazy" decoding="async" ')
+    canonical = f'<link rel="canonical" href="{BASE_URL}/{post["slug"]}">\n'
+    if "</head>" in out:
+        out = out.replace("</head>", canonical + "</head>", 1)
     if "</head>" in out:
         out = out.replace("</head>", READER_STYLE_OVERRIDES + "</head>", 1)
     else:
@@ -625,6 +628,8 @@ def build():
     open(os.path.join(DIST, "sitemap.xml"), "w").write(sitemap)
 
     open(os.path.join(DIST, "feed.xml"), "w").write(build_rss(all_items, site))
+    json.dump([{"slug": p["slug"], "title": p["title"]} for p in posts.values()],
+              open(os.path.join(DIST, "posts.json"), "w"))
     make_og_image()
 
     json.dump(report, open(os.path.join(DIST, "build_report.json"), "w"), indent=1)
