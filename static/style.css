@@ -28,6 +28,11 @@
 }
 
 * { box-sizing: border-box; }
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 20;
+  background: var(--accent); color: #fff; padding: 8px 14px; border-radius: 0 0 8px 0;
+}
+.skip-link:focus { left: 0; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;

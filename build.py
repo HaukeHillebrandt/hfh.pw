@@ -418,6 +418,21 @@ def make_og_image(title=None, out_name="og.png"):
     return out_name
 
 
+def make_touch_icon():
+    """180x180 apple-touch-icon matching the favicon. No-op without Pillow."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return
+    font = _og_font(110)
+    if not font:
+        return
+    im = Image.new("RGB", (180, 180), "#23508f")
+    d = ImageDraw.Draw(im)
+    d.text((90, 78), "H", font=font, fill="#faf9f6", anchor="mm")
+    im.save(os.path.join(DIST, "apple-touch-icon.png"), "PNG", optimize=True)
+
+
 def build_rss(all_items, site):
     items_xml = []
     for it in all_items[:60]:
@@ -684,6 +699,7 @@ def build():
     json.dump({p["slug"]: p.get("search_text", "") for p in posts.values()},
               open(os.path.join(DIST, "search.json"), "w"))
     make_og_image()
+    make_touch_icon()
 
     json.dump(report, open(os.path.join(DIST, "build_report.json"), "w"), indent=1)
 
