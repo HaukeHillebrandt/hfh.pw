@@ -215,6 +215,17 @@ def doc_open_url(doc):
     return f"https://docs.google.com/document/d/{doc['doc_id']}/edit"
 
 
+def text_from_export(export_html, limit=3000):
+    """Plain text of the doc body (span-aware tag stripping), for search."""
+    m = re.search(r"<body[^>]*>(.*)</body>", export_html, re.S)
+    if not m:
+        return ""
+    body = re.sub(r"<style.*?</style>", " ", m.group(1), flags=re.S)
+    body = re.sub(r"</(?:p|h[1-6]|li|td|div|br)>", " ", body)
+    text = htmllib.unescape(re.sub(r"<[^>]+>", "", body))
+    return re.sub(r"\s+", " ", text).strip()[:limit]
+
+
 def excerpt_from_export(export_html, title):
     """First real paragraph of the doc, skipping title/byline boilerplate."""
     if not export_html:
@@ -529,6 +540,7 @@ def build():
         post["has_reader"] = bool(export_html)
         if export_html:
             post["excerpt"] = excerpt_from_export(export_html, post["title"])
+            post["search_text"] = text_from_export(export_html).lower()
         reader_link = (f'<a class="btn" href="reader/{post["slug"]}">Reader view</a>'
                        if post["has_reader"] else "")
         og_rel = make_og_image(post["title"], f"og/{post['slug']}.png") or "og.png"
@@ -609,8 +621,9 @@ def build():
         if not it["date_exact"]:
             date_disp = f'<span title="Last modified date">upd. {date_disp}</span>'
         excerpt = f'<p class="excerpt">{esc(it["excerpt"])}</p>' if it.get("excerpt") else ""
+        slug_attr = f' data-slug="{esc(it["url"])}"' if not it["external"] else ""
         rows.append(
-            f'<li class="post" data-source="{badge}" data-title="{esc(it["title"].lower())}">'
+            f'<li class="post" data-source="{badge}" data-title="{esc(it["title"].lower())}"{slug_attr}>'
             f'<a class="post-link" href="{esc(it["url"])}"{ext}>'
             f'<span class="post-title">{esc(it["title"])}</span>'
             f'<span class="post-meta"><span class="badge {badge}">{badge}</span>{extra}'
@@ -662,6 +675,8 @@ def build():
     open(os.path.join(DIST, "feed.xml"), "w").write(build_rss(all_items, site))
     json.dump([{"slug": p["slug"], "title": p["title"]} for p in posts.values()],
               open(os.path.join(DIST, "posts.json"), "w"))
+    json.dump({p["slug"]: p.get("search_text", "") for p in posts.values()},
+              open(os.path.join(DIST, "search.json"), "w"))
     make_og_image()
 
     json.dump(report, open(os.path.join(DIST, "build_report.json"), "w"), indent=1)

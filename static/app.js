@@ -3,12 +3,23 @@
   var search = document.getElementById('search');
   var posts = document.querySelectorAll('.post');
   var filter = 'all';
+  var fullText = null;   // slug -> lowercase doc text, lazy-loaded on first search
+
+  function loadIndex() {
+    if (fullText !== null) return;
+    fullText = {};       // sentinel so we fetch once
+    fetch('search.json')
+      .then(function (r) { return r.json(); })
+      .then(function (d) { fullText = d; apply(); })
+      .catch(function () {});
+  }
 
   function apply() {
     var q = (search.value || '').toLowerCase().trim();
     posts.forEach(function (p) {
       var okSource = filter === 'all' || p.dataset.source === filter;
-      var okText = !q || p.dataset.title.indexOf(q) !== -1;
+      var okText = !q || p.dataset.title.indexOf(q) !== -1 ||
+        (p.dataset.slug && fullText && (fullText[p.dataset.slug] || '').indexOf(q) !== -1);
       p.classList.toggle('hidden', !(okSource && okText));
     });
     document.querySelectorAll('.year-sep').forEach(function (sep) {
@@ -45,5 +56,10 @@
       apply();
     });
   });
-  if (search) search.addEventListener('input', apply);
+  if (search) {
+    search.addEventListener('input', function () {
+      loadIndex();
+      apply();
+    });
+  }
 })();
