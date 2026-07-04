@@ -587,7 +587,13 @@ def build():
             "excerpt": p.get("excerpt", ""), "inkhaven": p.get("inkhaven", False),
             "folder": p.get("folder"), "external": False,
         })
+    def norm_title(t):
+        return re.sub(r"[^a-z0-9]", "", t.lower())
+
+    essay_titles = {norm_title(p["title"]) for p in posts.values()}
     for it in external:
+        if norm_title(it["title"]) in essay_titles:
+            continue  # cross-post of an essay; the doc version wins
         all_items.append({**it, "external": True, "date_exact": True,
                           "inkhaven": False, "folder": None})
     all_items.sort(key=lambda x: x["date"] or "0000", reverse=True)

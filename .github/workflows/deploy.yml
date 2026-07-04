@@ -46,3 +46,7 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Retry deploy (Pages is occasionally flaky)
+        if: steps.deployment.outcome == 'failure'
+        uses: actions/deploy-pages@v4
