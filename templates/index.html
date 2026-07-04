@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{SITE_TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<link rel="canonical" href="{{CANONICAL}}">
+<meta property="og:title" content="{{SITE_TITLE}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta property="og:type" content="website">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <a class="site-name" href="./">Hauke Hillebrandt</a>
+    <nav>{{NAV}}</nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Hauke Hillebrandt<span class="phd">, PhD</span></h1>
+    <p class="bio">{{BIO}}</p>
+  </section>
+
+  <section id="writing">
+    <div class="list-controls">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-filter="all">All <span class="count">{{COUNT_ALL}}</span></button>
+        <button class="tab" data-filter="essay">Essays <span class="count">{{COUNT_ESSAY}}</span></button>
+        <button class="tab" data-filter="substack">Substack <span class="count">{{COUNT_SUBSTACK}}</span></button>
+        <button class="tab" data-filter="note">Notes <span class="count">{{COUNT_NOTE}}</span></button>
+      </div>
+      <input id="search" type="search" placeholder="Search…" aria-label="Search posts">
+    </div>
+    <ul class="post-list">
+{{POSTS}}
+    </ul>
+  </section>
+
+  <section id="projects">
+    <h2>Projects</h2>
+    <div class="cards">{{PROJECTS}}</div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>Essays open as live Google Docs — click “Open in Google Docs” on any page to comment.
+     Last updated {{UPDATED}}. <a href="https://github.com/HaukeHillebrandt/hfh.pw">Source</a>.</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "site": {
+    "title": "Hauke Hillebrandt",
+    "description": "Writing and research by Hauke Hillebrandt, PhD — effective altruism, AI, economic growth, forecasting, and global priorities.",
+    "base_url": "https://haukehillebrandt.github.io/hfh.pw",
+    "future_domain": "https://www.hfh.pw",
+    "author": "Hauke Hillebrandt",
+    "email": "hauke.hillebrandt@gmail.com"
+  },
+  "bio": "Researcher and CEO of the Center for Applied Utilitarianism (<a href=\"https://lets-fund.org\">Let's Fund</a>). Previously: Center for Global Development, Centre for Effective Altruism (Oxford), Moral Cognition Lab (Harvard), PhD (UCL).",
+  "nav_links": [
+    {"label": "Substack", "url": "https://hauke.substack.com"},
+    {"label": "GitHub", "url": "https://github.com/HaukeHillebrandt"},
+    {"label": "CV", "url": "cv"}
+  ],
+  "drive_folder_id": "1fh8-FbNMdqp6ULXb_QnzhXeauPzVjzls",
+  "cv_doc_id": "1QE-N4y39YYESD1bfq7jBhCSg4tirfaDbVZZrLEnGSrA",
+  "feeds": {
+    "substack": "https://hauke.substack.com/feed",
+    "bearblog": "https://hauke.bearblog.dev/feed/?type=rss",
+    "inkhaven": "https://www.inkhaven.blog/feed.xml?author=Hauke%20Hillebrandt"
+  },
+  "exclude_titles": ["CV", "Hillebrandt_CV"],
+  "slug_overrides": {
+    "writing": {"docId": "10ZrXdQ1orgJdYa1p6toGp1VHUUYfnspINMI9xcC0kVw"}
+  },
+  "projects": [
+    {
+      "title": "AI Policy Forecasting Questions",
+      "url": "https://haukehillebrandt.github.io/forecasting-reports/projects/_global/global_forecasts.html",
+      "description": "Auto-generated forecasting questions on AI policy, distilled from academic papers."
+    },
+    {
+      "title": "Oh Shit, GenAI",
+      "url": "https://haukehillebrandt.github.io/oh-shit-genai/",
+      "description": "Every comment from the Hacker News 'oh shit moment with GenAI' thread, distilled to one line each."
+    },
+    {
+      "title": "Oh Shit, GenAI — Fable 5 edition",
+      "url": "https://haukehillebrandt.github.io/oh-shit-genai/fable5/",
+      "description": "The same thread, re-distilled by Claude Fable 5."
+    },
+    {
+      "title": "Wait",
+      "url": "https://haukehillebrandt.github.io/wait/",
+      "description": "A chain-of-thought story, visualized."
+    },
+    {
+      "title": "Let's Fund",
+      "url": "https://lets-fund.org",
+      "description": "Crowdfunding high-risk, high-reward research and advocacy. Raised $1M+ for clean energy innovation and better science."
+    }
+  ]
+}
