@@ -216,17 +216,30 @@ def doc_open_url(doc):
 
 
 def excerpt_from_export(export_html, title):
+    """First real paragraph of the doc, skipping title/byline boilerplate."""
     if not export_html:
         return ""
     m = re.search(r"<body[^>]*>(.*)</body>", export_html, re.S)
     if not m:
         return ""
-    text = re.sub(r"<[^>]+>", " ", m.group(1))
-    text = htmllib.unescape(re.sub(r"\s+", " ", text)).strip()
-    if text.lower().startswith(title.lower()):
-        text = text[len(title):].lstrip(" :—–-")
-    words = text.split(" ")
-    return " ".join(words[:36]) + ("…" if len(words) > 36 else "")
+    tnorm = re.sub(r"[^a-z0-9]", "", title.lower())
+    for para in re.findall(r"<p[^>]*>(.*?)</p>", m.group(1), re.S):
+        # Google export splits words across adjacent <span>s: strip tags with
+        # no separator, then clean footnote markers.
+        text = htmllib.unescape(re.sub(r"<[^>]+>", "", para))
+        text = re.sub(r"\[\w{1,3}\]", "", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        text = re.sub(r"^[a-z](?=[A-Z])", "", text)  # stray footnote superscript
+        norm = re.sub(r"[^a-z0-9]", "", text.lower())
+        if len(text) < 60:
+            continue
+        if "@" in text and len(text) < 200:  # byline with email
+            continue
+        if tnorm and norm.startswith(tnorm[:24]):
+            continue
+        words = text.split(" ")
+        return " ".join(words[:36]) + ("…" if len(words) > 36 else "")
+    return ""
 
 
 # ---------------------------------------------------------------- collect posts
