@@ -55,25 +55,30 @@ def fetch(url, timeout=30, retries=2, binary=False):
 CACHE_DIR = os.path.join(ROOT, "data", "cache")
 
 
-def cached_fetch(name, url):
-    """Network-first fetch with a committed fallback cache.
+def cached_json(name, producer):
+    """Network-first data source with a committed JSON fallback cache.
 
     Some feeds (Substack) block GitHub Actions runner IPs; the cache keeps
     the site complete when that happens and refreshes whenever a fetch works.
+    Caching parsed data (not raw responses) means the files only change when
+    the content actually changes, so the Action's auto-commit doesn't churn.
     """
     os.makedirs(CACHE_DIR, exist_ok=True)
-    path = os.path.join(CACHE_DIR, name)
+    path = os.path.join(CACHE_DIR, name + ".json")
     try:
-        body = fetch(url)
-        if "<item>" in body or "<entry>" in body or "flip-entry" in body:
+        data = producer()
+        if not data:
+            raise ValueError("empty result (blocked?)")
+        new = json.dumps(data, indent=1, sort_keys=True, ensure_ascii=False)
+        old = open(path).read() if os.path.exists(path) else None
+        if new != old:
             with open(path, "w") as f:
-                f.write(body)
-            return body
-        raise ValueError("response has no feed items (blocked?)")
+                f.write(new)
+        return data
     except Exception as e:  # noqa: BLE001
         if os.path.exists(path):
             warn(f"{name}: live fetch failed ({e}); using committed cache")
-            return open(path).read()
+            return json.loads(open(path).read())
         raise
 
 
@@ -100,8 +105,11 @@ def slugify(title):
 # ---------------------------------------------------------------- sources
 
 def fetch_drive_folder(fid):
-    src = cached_fetch(f"drive_{fid}.html",
-                       f"https://drive.google.com/embeddedfolderview?id={fid}#list")
+    return cached_json(f"drive_{fid}", lambda: _parse_drive_folder(
+        fetch(f"https://drive.google.com/embeddedfolderview?id={fid}#list")))
+
+
+def _parse_drive_folder(src):
     out = []
     for chunk in src.split('<div class="flip-entry" ')[1:]:
         eid = re.search(r'id="entry-([^"]+)"', chunk)
@@ -285,14 +293,16 @@ def collect_posts():
     print("Fetching feeds…")
     external = []
     try:
-        for it in parse_rss(cached_fetch("substack.xml", CONFIG["feeds"]["substack"])):
+        for it in cached_json("substack",
+                              lambda: parse_rss(fetch(CONFIG["feeds"]["substack"]))):
             if it["url"].rstrip("/") == "https://hauke.substack.com":
                 continue
             external.append({**it, "source": "substack"})
     except Exception as e:  # noqa: BLE001
         warn(f"substack feed failed: {e}")
     try:
-        for it in parse_rss(cached_fetch("bearblog.xml", CONFIG["feeds"]["bearblog"])):
+        for it in cached_json("bearblog",
+                              lambda: parse_rss(fetch(CONFIG["feeds"]["bearblog"]))):
             external.append({**it, "source": "note"})
     except Exception as e:  # noqa: BLE001
         warn(f"bearblog feed failed: {e}")
