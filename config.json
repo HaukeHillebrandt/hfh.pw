@@ -24,6 +24,12 @@
   "slug_overrides": {
     "writing": {"docId": "10ZrXdQ1orgJdYa1p6toGp1VHUUYfnspINMI9xcC0kVw"}
   },
+  "featured": [
+    "gdp-per-capita-in-2050",
+    "critique-of-openphils-macroeconomic-policy-advocacy",
+    "69-things-that-might-be-pretty-effective-to-fund",
+    "china-militarization"
+  ],
   "projects": [
     {
       "title": "AI Policy Forecasting Questions",

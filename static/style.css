@@ -112,10 +112,17 @@ a { color: var(--accent); }
 .badge.inkhaven { color: var(--badge-inkhaven); border-color: color-mix(in srgb, var(--badge-inkhaven) 35%, transparent); }
 .excerpt { display: none; }
 
-/* ---------- projects ---------- */
-#projects h2 {
+/* ---------- featured + projects ---------- */
+#featured { margin-top: 34px; }
+#featured h2, #projects h2 {
   font-family: ui-serif, Georgia, serif; font-size: 26px; margin: 8px 0 16px;
 }
+#featured .cards { margin-bottom: 8px; }
+.year-sep {
+  font-family: ui-serif, Georgia, serif; font-size: 15px; color: var(--muted);
+  padding: 22px 2px 6px; letter-spacing: .08em;
+}
+.year-sep.hidden { display: none; }
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 48px; }
 .card {
   display: block; background: var(--card); border: 1px solid var(--line);

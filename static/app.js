@@ -11,7 +11,26 @@
       var okText = !q || p.dataset.title.indexOf(q) !== -1;
       p.classList.toggle('hidden', !(okSource && okText));
     });
+    document.querySelectorAll('.year-sep').forEach(function (sep) {
+      var el = sep.nextElementSibling, any = false;
+      while (el && !el.classList.contains('year-sep')) {
+        if (el.classList.contains('post') && !el.classList.contains('hidden')) {
+          any = true;
+          break;
+        }
+        el = el.nextElementSibling;
+      }
+      sep.classList.toggle('hidden', !any);
+    });
   }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && search && document.activeElement !== search &&
+        !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+      e.preventDefault();
+      search.focus();
+    }
+  });
 
   tabs.forEach(function (t) {
     t.setAttribute('aria-pressed', t.classList.contains('active') ? 'true' : 'false');

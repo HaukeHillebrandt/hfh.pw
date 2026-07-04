@@ -567,8 +567,26 @@ def build():
                           "inkhaven": False, "folder": None})
     all_items.sort(key=lambda x: x["date"] or "0000", reverse=True)
 
+    featured_cards = []
+    for slug in CONFIG.get("featured", []):
+        p = posts.get(slug)
+        if not p:
+            warn(f"featured slug '{slug}' not found")
+            continue
+        featured_cards.append(
+            f'<a class="card" href="{esc(slug)}"><h3>{esc(p["title"])}</h3>'
+            f'<p>{esc(p.get("excerpt", ""))}</p></a>')
+    featured_html = (f'<section id="featured"><h2>Selected work</h2>'
+                     f'<div class="cards">{"".join(featured_cards)}</div></section>'
+                     if featured_cards else "")
+
     rows = []
+    last_year = None
     for it in all_items:
+        year = (it["date"] or "")[:4]
+        if year and year != last_year:
+            rows.append(f'<li class="year-sep" aria-hidden="true">{year}</li>')
+            last_year = year
         badge = {"essay": "essay", "substack": "substack", "note": "note"}[it["source"]]
         extra = ' <span class="badge inkhaven" title="Written during the Inkhaven residency">inkhaven</span>' if it["inkhaven"] else ""
         if it["folder"]:
@@ -601,6 +619,7 @@ def build():
                    CANONICAL=BASE_URL + "/",
                    BIO=CONFIG["bio"],
                    NAV=nav,
+                   FEATURED=featured_html,
                    POSTS="\n".join(rows),
                    PROJECTS=proj_cards,
                    COUNT_ALL=str(counts["all"]), COUNT_ESSAY=str(counts["essay"]),
