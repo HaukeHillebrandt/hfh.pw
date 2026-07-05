@@ -30,6 +30,11 @@ UA = {"User-Agent": "Mozilla/5.0 (compatible; hfh-pw-builder; +https://github.co
 
 CONFIG = json.load(open(os.path.join(ROOT, "config.json")))
 SLUG_HARVEST = json.load(open(os.path.join(ROOT, "data", "slugs_harvest.json")))
+_PUB_LINKS_PATH = os.path.join(ROOT, "data", "published_links.json")
+# Canonical 2PACX pub URLs discovered via tools/discover_published.py (some
+# published docs 401 on the anonymous ID-based pub endpoint).
+PUBLISHED_LINKS = (json.load(open(_PUB_LINKS_PATH))
+                   if os.path.exists(_PUB_LINKS_PATH) else {})
 BASE_URL = os.environ.get("SITE_BASE", CONFIG["site"]["base_url"]).rstrip("/")
 
 report = {"built_at": datetime.now(timezone.utc).isoformat(), "warnings": [], "docs": {}}
@@ -206,6 +211,9 @@ def doc_embed_url(doc):
         return f"https://drive.google.com/file/d/{doc['doc_id']}/preview"
     if doc.get("published"):
         return f"https://docs.google.com/document/d/{doc['doc_id']}/pub?embedded=true"
+    pl = PUBLISHED_LINKS.get(doc["doc_id"])
+    if pl and pl.get("publishAuto"):
+        return pl["url"] + "?embedded=true"
     return f"https://docs.google.com/document/d/{doc['doc_id']}/preview"
 
 
