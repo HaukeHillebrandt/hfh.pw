@@ -573,13 +573,15 @@ def build():
             "author": {"@type": "Person", "name": site["author"]},
             "mainEntityOfPage": f"{BASE_URL}/{post['slug']}",
         })
+        embed_url = doc_embed_url(post)
         page = render(post_tpl,
                       SITE_TITLE=esc(site["title"]),
                       TITLE=esc(post["title"]),
                       DESCRIPTION=esc(post.get("excerpt") or site["description"]),
                       CANONICAL=f"{BASE_URL}/{post['slug']}",
                       DATE=month_year(post["date"]),
-                      EMBED_URL=doc_embed_url(post),
+                      FRAME_CLASS="doc-frame pub" if "/pub?" in embed_url else "doc-frame",
+                      EMBED_URL=embed_url,
                       DOC_URL=doc_open_url(post),
                       READER_LINK=reader_link,
                       OG_IMAGE=f"{BASE_URL}/{og_rel}",
@@ -598,6 +600,7 @@ def build():
                   DESCRIPTION=esc(site["description"]),
                   CANONICAL=f"{BASE_URL}/cv", DATE="",
                   EMBED_URL=doc_embed_url(cv), DOC_URL=doc_open_url(cv),
+                  FRAME_CLASS="doc-frame",
                   READER_LINK="", OG_IMAGE=f"{BASE_URL}/og.png", JSONLD="", NAV=nav)
     open(os.path.join(DIST, "cv.html"), "w").write(page)
 
