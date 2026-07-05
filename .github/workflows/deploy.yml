@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "23 5 * * *"   # daily rebuild: picks up new Drive docs + feed posts
+    - cron: "41 5 * * *"   # daily rebuild: picks up new Drive docs + feed posts
   workflow_dispatch:
 
 permissions:
