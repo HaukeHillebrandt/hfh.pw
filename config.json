@@ -32,6 +32,11 @@
   ],
   "projects": [
     {
+      "title": "Diversifying AI Ownership",
+      "url": "https://haukehillebrandt.github.io/ai-ownership/",
+      "description": "The working paper as a long-form essay site, with a companion note on Bostrom's Open Global Investment model."
+    },
+    {
       "title": "AI Policy Forecasting Questions",
       "url": "https://haukehillebrandt.github.io/forecasting-reports/projects/_global/global_forecasts.html",
       "description": "Auto-generated forecasting questions on AI policy, distilled from academic papers."
