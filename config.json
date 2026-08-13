@@ -27,8 +27,39 @@
   "featured": [
     "gdp-per-capita-in-2050",
     "critique-of-openphils-macroeconomic-policy-advocacy",
-    "69-things-that-might-be-pretty-effective-to-fund",
-    "china-militarization"
+    {
+      "title": "Growth and the Case Against Randomista Development",
+      "url": "https://forum.effectivealtruism.org/posts/bsE5t6qhGC65fEpzN/growth-and-the-case-against-randomista-development",
+      "excerpt": "EA Forum (2020). 1st prize in the Effective Altruism Decade Review."
+    },
+    {
+      "title": "Let's Fund: Clean Energy",
+      "url": "https://lets-fund.org/clean-energy",
+      "excerpt": "This report helped crowdfund $1M+ for the Center for Clean Energy Innovation (2019)."
+    },
+    {
+      "title": "Let's Fund: Better Science",
+      "url": "https://lets-fund.org/better-science/",
+      "excerpt": "This report helped crowdfund $75k+ for Prof Chambers to advocate for Registered Reports (2018)."
+    },
+    {
+      "title": "Impact Investing",
+      "url": "https://web.archive.org/web/20200408214331/https://founderspledge.com/research/fp-impact-investing",
+      "excerpt": "Founders Pledge research report (2018), covered in Vox."
+    },
+    {
+      "title": "Commitment to Development Index",
+      "url": "https://www.cgdev.org/sites/default/files/CDI-2018-methodology.pdf",
+      "excerpt": "Methodology of CGD's Commitment to Development Index (2018)."
+    },
+    {
+      "title": "Effective connectivity during animacy perception",
+      "url": "https://www.nature.com/articles/srep06240",
+      "excerpt": "Scientific Reports (2014), with Karl Friston & Sarah-Jayne Blakemore."
+    },
+    "wwiii-risk",
+    "future",
+    "China-West-proxy-war"
   ],
   "projects": [
     {

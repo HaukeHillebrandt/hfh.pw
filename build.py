@@ -625,13 +625,19 @@ def build():
     all_items.sort(key=lambda x: x["date"] or "0000", reverse=True)
 
     featured_cards = []
-    for slug in CONFIG.get("featured", []):
-        p = posts.get(slug)
+    for entry in CONFIG.get("featured", []):
+        if isinstance(entry, dict):  # external item: {title, url, excerpt?}
+            featured_cards.append(
+                f'<a class="card" href="{esc(entry["url"])}" target="_blank" rel="noopener">'
+                f'<h3>{esc(entry["title"])}</h3>'
+                f'<p>{esc(entry.get("excerpt", ""))}</p></a>')
+            continue
+        p = posts.get(entry)
         if not p:
-            warn(f"featured slug '{slug}' not found")
+            warn(f"featured slug '{entry}' not found")
             continue
         featured_cards.append(
-            f'<a class="card" href="{esc(slug)}"><h3>{esc(p["title"])}</h3>'
+            f'<a class="card" href="{esc(entry)}"><h3>{esc(p["title"])}</h3>'
             f'<p>{esc(p.get("excerpt", ""))}</p></a>')
     featured_html = (f'<section id="featured"><h2>Selected work</h2>'
                      f'<div class="cards">{"".join(featured_cards)}</div></section>'
