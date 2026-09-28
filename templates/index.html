@@ -9,65 +9,55 @@
 <meta property="og:title" content="{{SITE_TITLE}}">
 <meta property="og:description" content="{{DESCRIPTION}}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="{{CANONICAL}}og.png">
+<meta property="og:image" content="{{OG_IMAGE}}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
-<link rel="alternate" type="application/rss+xml" title="Hauke Hillebrandt" href="feed.xml">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="stylesheet" href="style.css">
+{{HEAD}}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Person","name":"Hauke Hillebrandt",
+ "url":"{{CANONICAL}}","alumniOf":"University College London",
+ "sameAs":["https://hauke.substack.com","https://forum.effectivealtruism.org/users/haukehillebrandt",
+           "https://github.com/HaukeHillebrandt","https://lets-fund.org"]}
+</script>
 </head>
-<body>
-<a class="skip-link" href="#writing">Skip to content</a>
-<header class="site-header">
-  <div class="wrap">
-    <a class="site-name" href="./">Hauke Hillebrandt</a>
-    <nav><a href="#writing">Writing</a> <a href="#projects">Projects</a> {{NAV}}</nav>
-  </div>
-</header>
-
+<body class="home">
+<a class="skip-link" href="#writing">Skip to writing</a>
+{{HEADER}}
 <main class="wrap">
-  <section class="hero">
-    <h1>Hauke Hillebrandt<span class="phd">, PhD</span></h1>
+  <section class="intro">
+    <h1>{{NAME}}</h1>
     <p class="bio">{{BIO}}</p>
   </section>
 
-  {{FEATURED}}
+  <section id="selected" aria-labelledby="selected-h">
+    <h2 class="label" id="selected-h">Selected work</h2>
+    <ol class="selected">
+{{SELECTED}}
+    </ol>
+  </section>
 
-  <section id="writing">
-    <div class="list-controls">
-      <div class="tabs" role="tablist">
-        <button class="tab active" data-filter="all">All <span class="count">{{COUNT_ALL}}</span></button>
-        <button class="tab" data-filter="essay">Essays <span class="count">{{COUNT_ESSAY}}</span></button>
-        <button class="tab" data-filter="substack">Substack <span class="count">{{COUNT_SUBSTACK}}</span></button>
-        <button class="tab" data-filter="note">Notes <span class="count">{{COUNT_NOTE}}</span></button>
+  <section id="writing" aria-labelledby="writing-h">
+    <div class="index-head">
+      <h2 class="label" id="writing-h">Writing</h2>
+      <div class="filters" role="group" aria-label="Filter posts">
+        <button class="filter active" data-filter="all" aria-pressed="true">All <span>{{COUNT_ALL}}</span></button>
+        <button class="filter" data-filter="essay" aria-pressed="false">Essays <span>{{COUNT_ESSAY}}</span></button>
+        <button class="filter" data-filter="substack" aria-pressed="false">Substack <span>{{COUNT_SUBSTACK}}</span></button>
+        <button class="filter" data-filter="note" aria-pressed="false">Notes <span>{{COUNT_NOTE}}</span></button>
       </div>
-      <input id="search" type="search" placeholder="Search…" aria-label="Search posts">
+      <input id="search" type="search" placeholder="Search posts" aria-label="Search posts (shortcut: /)">
     </div>
-    <ul class="post-list">
+    <ul class="index">
 {{POSTS}}
     </ul>
+    <p class="empty" hidden>No posts match.</p>
   </section>
 
-  <section id="projects">
-    <h2>Projects</h2>
-    <div class="cards">{{PROJECTS}}</div>
+  <section id="projects" aria-labelledby="projects-h">
+    <h2 class="label" id="projects-h">Projects</h2>
+    <ul class="projects">{{PROJECTS}}</ul>
   </section>
 </main>
-
-<footer class="wrap">
-  <p>Essays open as live Google Docs — click “Open in Google Docs” on any page to comment.
-     Last updated {{UPDATED}}. <a href="feed.xml">RSS</a> ·
-     <a href="https://github.com/HaukeHillebrandt/hfh.pw">Source</a>.</p>
-</footer>
-<script type="application/ld+json">
-{"@context":"https://schema.org","@type":"Person","name":"Hauke Hillebrandt",
- "url":"{{CANONICAL}}","jobTitle":"Researcher",
- "alumniOf":"University College London",
- "sameAs":["https://hauke.substack.com","https://github.com/HaukeHillebrandt",
-           "https://lets-fund.org"]}
-</script>
+{{FOOTER}}
 <script src="app.js"></script>
 </body>
 </html>

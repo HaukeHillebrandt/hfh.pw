@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}} — {{SITE_TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<link rel="canonical" href="{{CANONICAL}}">
+<meta property="og:title" content="{{TITLE}}">
+<meta property="og:description" content="{{DESCRIPTION}}">
+<meta property="og:type" content="article">
+<meta property="og:image" content="{{OG_IMAGE}}">
+<meta name="twitter:card" content="summary_large_image">
+{{HEAD}}
+{{JSONLD}}
+</head>
+<body class="article-page">
+<a class="skip-link" href="#content">Skip to content</a>
+{{HEADER}}
+<main id="content" class="wrap article">
+  <header class="article-head">
+    <p class="meta">{{META}}</p>
+    <h1>{{TITLE}}</h1>
+    {{SUBTITLE}}
+    <p class="actions">
+        {{ACTIONS}}
+    </p>
+  </header>
+  <div class="prose">
+{{CONTENT}}
+  </div>
+</main>
+{{FOOTER}}
+</body>
+</html>

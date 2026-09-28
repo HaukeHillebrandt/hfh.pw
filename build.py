@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Static site builder for hfh.pw.
 
-Fetches content from Google Drive (public folder listing), Substack,
-Bearblog and the Inkhaven feed, then renders a static site into dist/.
+Fetches content from Google Drive (public folder listing), Substack and
+Bearblog, then renders a static site into dist/.
 
-Google Docs are served two ways:
-  - live view  : /<slug>          -> iframe of the live doc (pub or preview endpoint)
-  - reader view: /reader/<slug>   -> doc HTML exported at build time (fast, indexable)
+Every Google Doc shows its first tab only (other tabs stay reachable in
+Google Docs):
+  - single-tab docs: /<slug> embeds the live doc (edits show within minutes),
+                     /reader/<slug> is a typeset article of it
+  - multi-tab docs : /<slug> is a typeset article of the first tab (Google's
+                     live views can't be limited to one tab neatly)
 
-Stdlib only; no dependencies.
+Stdlib only; Pillow (optional) for images and social cards.
 """
 import base64
+import difflib
 import hashlib
 import json
 import os
@@ -19,23 +23,32 @@ import shutil
 import sys
 import html as htmllib
 import urllib.request
-import urllib.error
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
+from docrender import parse_tabs, plain, strip_comments, to_article
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DIST = os.path.join(ROOT, "dist")
+FONT_DIR = os.path.join(ROOT, "assets", "fonts")
 UA = {"User-Agent": "Mozilla/5.0 (compatible; hfh-pw-builder; +https://github.com/HaukeHillebrandt/hfh.pw)"}
 
+
+def _load(name, default):
+    path = os.path.join(ROOT, "data", name)
+    return json.load(open(path)) if os.path.exists(path) else default
+
+
 CONFIG = json.load(open(os.path.join(ROOT, "config.json")))
-SLUG_HARVEST = json.load(open(os.path.join(ROOT, "data", "slugs_harvest.json")))
-_PUB_LINKS_PATH = os.path.join(ROOT, "data", "published_links.json")
-# Canonical 2PACX pub URLs discovered via tools/discover_published.py (some
-# published docs 401 on the anonymous ID-based pub endpoint).
-PUBLISHED_LINKS = (json.load(open(_PUB_LINKS_PATH))
-                   if os.path.exists(_PUB_LINKS_PATH) else {})
+SLUG_HARVEST = _load("slugs_harvest.json", {})
+# Written by tools/discover_published.py (needs Google auth, so run locally):
+# canonical 2PACX pub URLs (some published docs 401 on the ID-based endpoint)
+# and creation dates for Drive docs with no known publication date.
+PUBLISHED_LINKS = _load("published_links.json", {})
+DOC_META = _load("doc_meta.json", {})
 BASE_URL = os.environ.get("SITE_BASE", CONFIG["site"]["base_url"]).rstrip("/")
+AUTHOR = CONFIG["site"]["author"]
 
 report = {"built_at": datetime.now(timezone.utc).isoformat(), "warnings": [], "docs": {}}
 
@@ -45,13 +58,12 @@ def warn(msg):
     print(f"  [warn] {msg}", file=sys.stderr)
 
 
-def fetch(url, timeout=30, retries=2, binary=False):
+def fetch(url, timeout=30, retries=2):
     last = None
     for _ in range(retries + 1):
         try:
             req = urllib.request.Request(url, headers=UA)
-            data = urllib.request.urlopen(req, timeout=timeout).read()
-            return data if binary else data.decode("utf-8", "replace")
+            return urllib.request.urlopen(req, timeout=timeout).read().decode("utf-8", "replace")
         except Exception as e:  # noqa: BLE001 - retry any network error
             last = e
     raise last
@@ -178,66 +190,57 @@ def parse_rss(xml):
 
 # ---------------------------------------------------------------- doc probing
 
-COMMENT_ANCHOR_RE = re.compile(
-    r'(?:<sup>\s*)?<a href="#cmnt\d+" id="cmnt_ref\d+">\[\w+\]</a>(?:\s*</sup>)?')
-COMMENT_BODY_RE = re.compile(
-    r'<div[^>]*>\s*<p[^>]*>\s*<a href="#cmnt_ref\d+" id="cmnt\d+">.*?</div>', re.S)
-
-
-def strip_comments(export_html):
-    """Drop doc comment threads from Google's HTML export.
-
-    The export includes comments that link-viewers of the doc never see;
-    publishing them would leak private review discussion.
-    """
-    if not export_html:
-        return export_html
-    return COMMENT_BODY_RE.sub("", COMMENT_ANCHOR_RE.sub("", export_html))
-
-
 def probe_doc(doc):
-    """Decide embed endpoint for a Google Doc and fetch its exported HTML."""
+    """Publication state, tabs and first-tab HTML export of one Google Doc."""
     did = doc["doc_id"]
-    result = {"published": False, "export_html": None, "restricted": False}
+    result = {"published": False, "export_html": None, "restricted": False,
+              "first_tab": "t.0", "tab_count": 1, "tab_title": None}
+    if did not in PUBLISHED_LINKS:
+        try:
+            body = fetch(f"https://docs.google.com/document/d/{did}/pub", retries=1)
+            result["published"] = 'id="contents"' in body or "doc-content" in body
+        except Exception:  # noqa: BLE001 - unpublished/restricted docs 401 here
+            pass
     try:
-        body = fetch(f"https://docs.google.com/document/d/{did}/pub", retries=1)
-        if 'id="contents"' in body or "doc-content" in body:
-            result["published"] = True
-    except Exception:  # noqa: BLE001 - unpublished/restricted docs 401 here
+        prev = fetch(f"https://docs.google.com/document/d/{did}/preview", retries=1)
+        if "ServiceLogin" in prev or "accounts.google.com/v3/signin" in prev:
+            result["restricted"] = True
+        else:
+            first, tabs = parse_tabs(prev)
+            count = re.search(r'"%s"\s*,\s*(\d+)\s*,\s*undefined' % re.escape(first), prev)
+            result["first_tab"] = first
+            result["tab_count"] = int(count.group(1)) if count else max(1, len(tabs))
+            result["tab_title"] = next((t for i, t, _ in tabs if i == first), None)
+    except Exception:  # noqa: BLE001
         pass
     try:
-        result["export_html"] = fetch(
-            f"https://docs.google.com/document/d/{did}/export?format=html", retries=1)
+        result["export_html"] = strip_comments(fetch(
+            f"https://docs.google.com/document/d/{did}/export?format=html&tab={result['first_tab']}",
+            retries=1))
     except Exception as e:  # noqa: BLE001
         warn(f"no HTML export for '{doc['title']}' ({did}): {e}")
-    if not result["published"] and not result["export_html"]:
-        # Anonymous visitors would hit a Google login wall in the iframe.
-        try:
-            prev = fetch(f"https://docs.google.com/document/d/{did}/preview", retries=0)
-            result["restricted"] = "ServiceLogin" in prev or "accounts.google.com/v3/signin" in prev
-        except Exception:  # noqa: BLE001
-            result["restricted"] = True
-        if result["restricted"]:
-            warn(f"RESTRICTED doc (login wall for visitors): '{doc['title']}' ({did}) "
-                 f"- share it as 'anyone with the link' to fix")
+    if result["restricted"]:
+        warn(f"RESTRICTED doc (login wall for visitors): '{doc['title']}' ({did}) "
+             f"- share it as 'anyone with the link' to fix")
     return result
 
 
 def doc_embed_url(doc):
     if doc.get("kind") == "file":
         return f"https://drive.google.com/file/d/{doc['doc_id']}/preview"
-    if doc.get("published"):
-        return f"https://docs.google.com/document/d/{doc['doc_id']}/pub?embedded=true"
     pl = PUBLISHED_LINKS.get(doc["doc_id"])
     if pl and pl.get("publishAuto"):
         return pl["url"] + "?embedded=true"
+    if doc.get("published"):
+        return f"https://docs.google.com/document/d/{doc['doc_id']}/pub?embedded=true"
     return f"https://docs.google.com/document/d/{doc['doc_id']}/preview"
 
 
 def doc_open_url(doc):
     if doc.get("kind") == "file":
         return f"https://drive.google.com/file/d/{doc['doc_id']}/view"
-    return f"https://docs.google.com/document/d/{doc['doc_id']}/edit"
+    url = f"https://docs.google.com/document/d/{doc['doc_id']}/edit"
+    return url + f"?tab={doc['first_tab']}" if doc.get("tab_count", 1) > 1 else url
 
 
 def text_from_export(export_html, limit=3000):
@@ -260,8 +263,6 @@ def excerpt_from_export(export_html, title):
         return ""
     tnorm = re.sub(r"[^a-z0-9]", "", title.lower())
     for para in re.findall(r"<p[^>]*>(.*?)</p>", m.group(1), re.S):
-        # Google export splits words across adjacent <span>s: strip tags with
-        # no separator, then clean footnote markers.
         text = htmllib.unescape(re.sub(r"<[^>]+>", "", para))
         text = re.sub(r"\[\w{1,3}\]", "", text)
         text = re.sub(r"\s+", " ", text).strip()
@@ -298,8 +299,8 @@ def collect_posts():
     posts = {}  # slug -> post
     used_doc_ids = set()
 
-    # 1. Harvested slugs from the old Google Site (canonical URLs + real dates),
-    #    plus manual fixes from config.
+    # 1. Posts with a known publication date (harvested from the old Google
+    #    Site / Inkhaven feed), plus manual fixes from config.
     harvest = dict(SLUG_HARVEST)
     for slug, info in CONFIG.get("slug_overrides", {}).items():
         harvest[slug] = {**harvest.get(slug, {}), **info}
@@ -317,11 +318,11 @@ def collect_posts():
         used_doc_ids.add(doc_id)
         posts[slug] = {
             "slug": slug, "title": info["title"], "date": info["date"],
-            "date_exact": True, "doc_id": doc_id, "kind": kind,
+            "date_kind": "published", "doc_id": doc_id, "kind": kind,
             "source": "essay", "inkhaven": info["date"] >= "2025-11-01",
         }
 
-    # 2. Drive-folder docs not already covered by a harvested slug
+    # 2. Other Drive-folder docs, dated by creation (or last edit if unknown)
     for did, e in drive_docs.items():
         if did in used_doc_ids:
             continue
@@ -331,9 +332,13 @@ def collect_posts():
         slug = slugify(e["title"])
         while slug in posts:
             slug += "-2"
+        meta = DOC_META.get(did)
+        if meta:
+            date, date_kind = meta["created"], "created"
+        else:
+            date, date_kind = parse_mdy(e["modified"]) or "2020-01-01", "updated"
         posts[slug] = {
-            "slug": slug, "title": e["title"],
-            "date": parse_mdy(e["modified"]) or "2020-01-01", "date_exact": False,
+            "slug": slug, "title": e["title"], "date": date, "date_kind": date_kind,
             "doc_id": did, "kind": kind, "source": "essay",
             "folder": e.get("folder"), "inkhaven": False,
         }
@@ -341,6 +346,11 @@ def collect_posts():
     # 3. External posts
     print("Fetching feeds…")
     external = []
+    eaforum = []
+    try:
+        eaforum = cached_json("eaforum", fetch_eaforum_posts)
+    except Exception as e:  # noqa: BLE001
+        warn(f"EA Forum lookup failed: {e}")
     try:
         for it in cached_json("substack",
                               lambda: parse_rss(fetch(CONFIG["feeds"]["substack"]))):
@@ -356,15 +366,43 @@ def collect_posts():
     except Exception as e:  # noqa: BLE001
         warn(f"bearblog feed failed: {e}")
 
+    # Drive docs also published on the EA Forum or Substack take that date.
+    published = [(it["title"], it["date"]) for it in eaforum + external if it.get("date")]
+    for p in posts.values():
+        if p["date_kind"] == "published":
+            continue
+        match = min((d for t, d in published if same_title(p["title"], t)), default=None)
+        if match:
+            p["date"], p["date_kind"] = match, "published"
+
     return posts, external
 
 
-# ---------------------------------------------------------------- reader pages
+def fetch_eaforum_posts():
+    """Titles and dates of the author's EA Forum posts (public GraphQL API)."""
+    query = ('{ posts(input:{terms:{view:"userPosts", userId:"%s", limit:300}}) '
+             '{ results { title postedAt } } }' % CONFIG["eaforum_user_id"])
+    req = urllib.request.Request(
+        "https://forum.effectivealtruism.org/graphql", data=json.dumps({"query": query}).encode(),
+        headers={**UA, "Content-Type": "application/json"})
+    rows = json.load(urllib.request.urlopen(req, timeout=40))["data"]["posts"]["results"]
+    return sorted(({"title": r["title"], "date": r["postedAt"][:10]} for r in rows if r.get("postedAt")),
+                  key=lambda r: r["date"])
+
+
+def same_title(a, b):
+    na, nb = (re.sub(r"[^a-z0-9]", "", x.lower()) for x in (a, b))
+    if min(len(na), len(nb)) < 10:
+        return na == nb
+    return na == nb or difflib.SequenceMatcher(None, na, nb).ratio() >= 0.9
+
+
+# ---------------------------------------------------------------- images
 
 def optimize_image_bytes(data, ext):
     """Downscale/recompress one image; returns (bytes, ext).
 
-    Screenshots (opaque PNGs) and animated GIFs recompress to WebP at a
+    Screenshots (opaque PNGs) and still images recompress to WebP at a
     fraction of the size. Falls back to the original bytes on any failure
     or when Pillow is unavailable.
     """
@@ -399,89 +437,10 @@ def optimize_image_bytes(data, ext):
     return data, ext
 
 
-def _og_font(size):
-    from PIL import ImageFont
-    for f in ["/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
-              "/System/Library/Fonts/Supplemental/Georgia.ttf",
-              "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"]:
-        if os.path.exists(f):
-            return ImageFont.truetype(f, size)
-    return None
-
-
-def make_og_image(title=None, out_name="og.png"):
-    """Branded social card; per-post cards render the post title.
-
-    Returns the card's site-relative path, or None if Pillow/fonts missing.
-    """
-    try:
-        from PIL import Image, ImageDraw
-    except ImportError:
-        return None
-    import textwrap
-    small = _og_font(34)
-    if not small:
-        return None
-    im = Image.new("RGB", (1200, 630), "#1d2b45")
-    d = ImageDraw.Draw(im)
-    d.rectangle([0, 0, 1200, 8], fill="#8db4e8")
-    if title:
-        lines = textwrap.wrap(title, width=30)[:4]
-        font = _og_font(64 if len(lines) <= 3 else 56)
-        y = 315 - 42 * len(lines)
-        for line in lines:
-            d.text((80, y), line, font=font, fill="#faf9f6")
-            y += 84
-        d.text((84, 520), "Hauke Hillebrandt", font=small, fill="#9fb3d1")
-    else:
-        d.text((80, 240), "Hauke Hillebrandt", font=_og_font(78), fill="#faf9f6")
-        d.text((84, 350), "Essays on AI, economic growth, and global priorities",
-               font=small, fill="#9fb3d1")
-    path = os.path.join(DIST, out_name)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    im.save(path, "PNG", optimize=True)
-    return out_name
-
-
-def make_touch_icon():
-    """180x180 apple-touch-icon matching the favicon. No-op without Pillow."""
-    try:
-        from PIL import Image, ImageDraw
-    except ImportError:
-        return
-    font = _og_font(110)
-    if not font:
-        return
-    im = Image.new("RGB", (180, 180), "#23508f")
-    d = ImageDraw.Draw(im)
-    d.text((90, 78), "H", font=font, fill="#faf9f6", anchor="mm")
-    im.save(os.path.join(DIST, "apple-touch-icon.png"), "PNG", optimize=True)
-
-
-def build_rss(all_items, site):
-    items_xml = []
-    for it in all_items[:60]:
-        if not it["date"] or not it["date_exact"]:
-            continue
-        url = it["url"] if it["external"] else f"{BASE_URL}/{it['url']}"
-        desc = esc(it.get("excerpt") or "")
-        items_xml.append(
-            f"  <item>\n    <title>{esc(it['title'])}</title>\n"
-            f"    <link>{esc(url)}</link>\n    <guid isPermaLink=\"false\">{esc(url)}</guid>\n"
-            f"    <pubDate>{datetime.strptime(it['date'], '%Y-%m-%d').strftime('%a, %d %b %Y 00:00:00 GMT')}</pubDate>\n"
-            f"    <description>{desc}</description>\n  </item>")
-    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
-            '<rss version="2.0"><channel>\n'
-            f"  <title>{esc(site['title'])}</title>\n"
-            f"  <link>{BASE_URL}/</link>\n"
-            f"  <description>{esc(site['description'])}</description>\n"
-            + "\n".join(items_xml) + "\n</channel></rss>\n")
-
-
 DATA_URI_RE = re.compile(r'src="data:image/(png|jpe?g|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)"')
 
 
-def externalize_images(html_str):
+def externalize_images(html_str, prefix):
     """Move base64-inlined images out to dist/img/<hash> files (deduped)."""
     img_dir = os.path.join(DIST, "img")
     os.makedirs(img_dir, exist_ok=True)
@@ -500,45 +459,72 @@ def externalize_images(html_str):
         if not os.path.exists(path):
             with open(path, "wb") as f:
                 f.write(data)
-        return f'src="../img/{name}"'
+        return f'src="{prefix}img/{name}"'
 
     return DATA_URI_RE.sub(repl, html_str)
 
 
-READER_STYLE_OVERRIDES = """
-<style>
-  body { max-width: 760px !important; margin: 0 auto !important;
-         padding: 96px 24px 64px !important; }
-  img { max-width: 100% !important; height: auto !important; }
-  table { max-width: 100%; }
-</style>
-"""
+# ---------------------------------------------------------------- social cards
+
+INK, ACCENT, MUTED = "#0f1115", "#1f3fe0", "#9aa3b2"
 
 
-def build_reader_page(post, export_html):
-    """Standalone reader page: Google's exported HTML + injected site header."""
-    bar = render(template("readerbar.html"),
-                 TITLE=esc(post["title"]),
-                 LIVE_URL=f"../{post['slug']}",
-                 DOC_URL=doc_open_url(post))
-    out = externalize_images(export_html)
-    out = out.replace("<img ", '<img loading="lazy" decoding="async" ')
-    canonical = f'<link rel="canonical" href="{BASE_URL}/{post["slug"]}">\n'
-    if "</head>" in out:
-        out = out.replace("</head>", canonical + "</head>", 1)
-    if "</head>" in out:
-        out = out.replace("</head>", READER_STYLE_OVERRIDES + "</head>", 1)
+def _font(size, weight=700):
+    from PIL import ImageFont
+    path = os.path.join(FONT_DIR, f"Inter-{weight}.ttf")
+    return ImageFont.truetype(path, size) if os.path.exists(path) else None
+
+
+def make_og_image(title=None, out_name="og.png"):
+    """1200x630 social card; per-post cards render the post title.
+
+    Returns the card's site-relative path, or None if Pillow/fonts missing.
+    """
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return None
+    import textwrap
+    small = _font(30, 500)
+    if not small:
+        return None
+    im = Image.new("RGB", (1200, 630), INK)
+    d = ImageDraw.Draw(im)
+    d.rectangle([80, 84, 108, 112], fill=ACCENT)
+    d.text((126, 80), AUTHOR, font=small, fill=MUTED)
+    if title:
+        lines = textwrap.wrap(title, width=26)[:4]
+        size = 72 if len(lines) <= 2 else (62 if len(lines) == 3 else 54)
+        font, y = _font(size), 210
+        for line in lines:
+            d.text((80, y), line, font=font, fill="#ffffff")
+            y += int(size * 1.18)
     else:
-        out = READER_STYLE_OVERRIDES + out
-    m = re.search(r"<body[^>]*>", out)
-    if m:
-        out = out[:m.end()] + "\n" + bar + out[m.end():]
-    else:
-        out = bar + out
-    return out
+        d.text((80, 230), AUTHOR, font=_font(84), fill="#ffffff")
+        d.text((82, 350), "AI governance · economic growth · effective philanthropy",
+               font=_font(34, 500), fill=MUTED)
+    d.text((80, 536), "hfh.pw", font=small, fill=MUTED)
+    path = os.path.join(DIST, out_name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    im.save(path, "PNG", optimize=True)
+    return out_name
 
 
-# ---------------------------------------------------------------- rendering
+def make_touch_icon():
+    """180x180 apple-touch-icon matching the favicon. No-op without Pillow."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return
+    font = _font(112)
+    if not font:
+        return
+    im = Image.new("RGB", (180, 180), ACCENT)
+    ImageDraw.Draw(im).text((90, 88), "H", font=font, fill="#ffffff", anchor="mm")
+    im.save(os.path.join(DIST, "apple-touch-icon.png"), "PNG", optimize=True)
+
+
+# ---------------------------------------------------------------- page parts
 
 def month_year(iso):
     try:
@@ -547,22 +533,106 @@ def month_year(iso):
         return ""
 
 
+def nav_html(root):
+    home = root or "./"
+    out = []
+    for link in CONFIG["nav_links"]:
+        if "href" in link:
+            href = link["href"]
+            href = home + href if href.startswith("#") else root + href
+            out.append(f'<a href="{esc(href)}">{esc(link["label"])}</a>')
+        else:
+            out.append(f'<a href="{esc(link["url"])}" rel="me noopener">{esc(link["label"])}'
+                       f'<span class="ext" aria-hidden="true">↗</span></a>')
+    return "\n      ".join(out)
+
+
+def head_common(root):
+    return render(template("_head.html"), ROOT=root)
+
+
+def header_html(root):
+    return render(template("_header.html"), ROOT=root, HOME=root or "./", NAV=nav_html(root))
+
+
+def footer_html(root):
+    return render(template("_footer.html"), ROOT=root,
+                  UPDATED=datetime.now(timezone.utc).strftime("%-d %B %Y"))
+
+
+def build_rss(all_items, site):
+    items_xml = []
+    for it in all_items[:60]:
+        if not it["date"] or it.get("date_kind") == "updated":
+            continue
+        url = it["url"] if it["external"] else f"{BASE_URL}/{it['url']}"
+        items_xml.append(
+            f"  <item>\n    <title>{esc(it['title'])}</title>\n"
+            f"    <link>{esc(url)}</link>\n    <guid isPermaLink=\"false\">{esc(url)}</guid>\n"
+            f"    <pubDate>{datetime.strptime(it['date'], '%Y-%m-%d').strftime('%a, %d %b %Y 00:00:00 GMT')}</pubDate>\n"
+            f"    <description>{esc(it.get('excerpt') or '')}</description>\n  </item>")
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<rss version="2.0"><channel>\n'
+            f"  <title>{esc(site['title'])}</title>\n"
+            f"  <link>{BASE_URL}/</link>\n"
+            f"  <description>{esc(site['description'])}</description>\n"
+            + "\n".join(items_xml) + "\n</channel></rss>\n")
+
+
+def article_page(post, export_html, root, canonical, live_link):
+    art = to_article(export_html, [post["title"], post.get("tab_title")], author=AUTHOR)
+    body = externalize_images(art["body"], root)
+    meta = [month_year(post["date"])]
+    if post.get("inkhaven"):
+        meta.append("Inkhaven")
+    if post.get("folder"):
+        meta.append(post["folder"])
+    actions = [f'<a class="btn primary" href="{esc(doc_open_url(post))}" target="_blank" '
+               f'rel="noopener">Open in Google Docs <span aria-hidden="true">↗</span></a>']
+    if live_link:
+        actions.append(f'<a class="btn" href="{esc(live_link)}">Live view</a>')
+    title = art["title"] or post["title"]
+    subtitle = f'<p class="dek">{esc(art["subtitle"])}</p>' if art["subtitle"] else ""
+    return render(template("article.html"),
+                  HEAD=head_common(root), HEADER=header_html(root), FOOTER=footer_html(root),
+                  ROOT=root, TITLE=esc(title), SITE_TITLE=esc(CONFIG["site"]["title"]),
+                  DESCRIPTION=esc(post.get("excerpt") or CONFIG["site"]["description"]),
+                  CANONICAL=canonical, OG_IMAGE=f"{BASE_URL}/{post['og']}",
+                  JSONLD=post["jsonld"], META=" · ".join(m for m in meta if m),
+                  SUBTITLE=subtitle, ACTIONS="\n        ".join(actions), CONTENT=body)
+
+
+def frame_page(post, reader_href):
+    embed = doc_embed_url(post)
+    reader = (f'<a class="btn" href="{esc(reader_href)}">Article view</a>' if reader_href else "")
+    return render(template("post.html"),
+                  HEAD=head_common(""), TITLE=esc(post["title"]),
+                  SITE_TITLE=esc(CONFIG["site"]["title"]),
+                  DESCRIPTION=esc(post.get("excerpt") or CONFIG["site"]["description"]),
+                  CANONICAL=f"{BASE_URL}/{post['slug']}", DATE=month_year(post.get("date", "")),
+                  EMBED_URL=embed, FRAME_CLASS="doc-frame pub" if "/pub?" in embed else "doc-frame",
+                  DOC_URL=esc(doc_open_url(post)), READER_LINK=reader,
+                  OG_IMAGE=f"{BASE_URL}/{post.get('og', 'og.png')}", JSONLD=post.get("jsonld", ""))
+
+
+# ---------------------------------------------------------------- build
+
 def build():
     posts, external = collect_posts()
 
     print(f"Probing {len(posts)} Google Docs…")
     with ThreadPoolExecutor(max_workers=12) as ex:
-        probes = {slug: f for slug, f in
-                  ((s, ex.submit(probe_doc, p)) for s, p in posts.items() if p["kind"] == "doc")}
+        probes = {s: ex.submit(probe_doc, p) for s, p in posts.items() if p["kind"] == "doc"}
         for slug, fut in probes.items():
             r = fut.result()
-            posts[slug]["published"] = r["published"]
-            posts[slug]["_export"] = strip_comments(r["export_html"])
-            report["docs"][slug] = {"published": r["published"],
+            p = posts[slug]
+            p.update(published=r["published"], first_tab=r["first_tab"],
+                     tab_count=r["tab_count"], tab_title=r["tab_title"])
+            p["_export"] = r["export_html"]
+            report["docs"][slug] = {"published": r["published"] or p["doc_id"] in PUBLISHED_LINKS,
                                     "has_export": bool(r["export_html"]),
-                                    "restricted": r["restricted"]}
+                                    "tabs": r["tab_count"], "restricted": r["restricted"]}
 
-    # ---- output dir
     if os.path.exists(DIST):
         shutil.rmtree(DIST)
     os.makedirs(os.path.join(DIST, "reader"))
@@ -570,66 +640,49 @@ def build():
         shutil.copy(os.path.join(ROOT, "static", f), DIST)
 
     site = CONFIG["site"]
-    nav = " ".join(
-        f'<a href="{esc(l["url"])}">{esc(l["label"])}</a>' for l in CONFIG["nav_links"])
 
-    # ---- doc pages (live iframe view) + reader pages
-    post_tpl = template("post.html")
+    # ---- post pages
+    n_articles = n_frames = 0
     for post in posts.values():
         export_html = post.pop("_export", None)
-        post["has_reader"] = bool(export_html)
+        post["has_article"] = bool(export_html)
         if export_html:
             post["excerpt"] = excerpt_from_export(export_html, post["title"])
             post["search_text"] = text_from_export(export_html).lower()
-        reader_link = (f'<a class="btn" href="reader/{post["slug"]}">Reader view</a>'
-                       if post["has_reader"] else "")
-        og_rel = make_og_image(post["title"], f"og/{post['slug']}.png") or "og.png"
-        jsonld = json.dumps({
+        post["og"] = make_og_image(post["title"], f"og/{post['slug']}.png") or "og.png"
+        post["jsonld"] = ('<script type="application/ld+json">' + json.dumps({
             "@context": "https://schema.org", "@type": "Article",
             "headline": post["title"], "datePublished": post["date"],
-            "author": {"@type": "Person", "name": site["author"]},
-            "mainEntityOfPage": f"{BASE_URL}/{post['slug']}",
-        })
-        embed_url = doc_embed_url(post)
-        page = render(post_tpl,
-                      SITE_TITLE=esc(site["title"]),
-                      TITLE=esc(post["title"]),
-                      DESCRIPTION=esc(post.get("excerpt") or site["description"]),
-                      CANONICAL=f"{BASE_URL}/{post['slug']}",
-                      DATE=month_year(post["date"]),
-                      FRAME_CLASS="doc-frame pub" if "/pub?" in embed_url else "doc-frame",
-                      EMBED_URL=embed_url,
-                      DOC_URL=doc_open_url(post),
-                      READER_LINK=reader_link,
-                      OG_IMAGE=f"{BASE_URL}/{og_rel}",
-                      JSONLD=f'<script type="application/ld+json">{jsonld}</script>',
-                      NAV=nav)
-        open(os.path.join(DIST, f"{post['slug']}.html"), "w").write(page)
-        if export_html:
-            open(os.path.join(DIST, "reader", f"{post['slug']}.html"), "w").write(
-                build_reader_page(post, export_html))
+            "author": {"@type": "Person", "name": AUTHOR},
+            "mainEntityOfPage": f"{BASE_URL}/{post['slug']}"}) + "</script>")
+        canonical = f"{BASE_URL}/{post['slug']}"
+        top = os.path.join(DIST, f"{post['slug']}.html")
+        reader = os.path.join(DIST, "reader", f"{post['slug']}.html")
+        if export_html and post.get("tab_count", 1) > 1:
+            open(top, "w").write(article_page(post, export_html, "", canonical, None))
+            open(reader, "w").write(
+                f'<!doctype html><meta charset="utf-8"><link rel="canonical" href="{canonical}">'
+                f'<meta http-equiv="refresh" content="0;url=../{post["slug"]}">')
+            n_articles += 1
+        else:
+            open(top, "w").write(frame_page(post, f"reader/{post['slug']}" if export_html else None))
+            n_frames += 1
+            if export_html:
+                open(reader, "w").write(
+                    article_page(post, export_html, "../", canonical, f"../{post['slug']}"))
+    print(f"  {n_articles} multi-tab docs rendered as articles, {n_frames} live embeds")
 
-    # ---- CV page
-    cv = {"slug": "cv", "title": "CV — Hauke Hillebrandt", "doc_id": CONFIG["cv_doc_id"],
-          "kind": "doc", "published": False}
-    page = render(post_tpl,
-                  SITE_TITLE=esc(site["title"]), TITLE="CV",
-                  DESCRIPTION=esc(site["description"]),
-                  CANONICAL=f"{BASE_URL}/cv", DATE="",
-                  EMBED_URL=doc_embed_url(cv), DOC_URL=doc_open_url(cv),
-                  FRAME_CLASS="doc-frame",
-                  READER_LINK="", OG_IMAGE=f"{BASE_URL}/og.png", JSONLD="", NAV=nav)
-    open(os.path.join(DIST, "cv.html"), "w").write(page)
+    # ---- CV page (live embed)
+    cv = {"slug": "cv", "title": "CV", "doc_id": CONFIG["cv_doc_id"], "kind": "doc",
+          "date": "", "og": "og.png"}
+    open(os.path.join(DIST, "cv.html"), "w").write(frame_page(cv, None))
 
     # ---- homepage
-    all_items = []
-    for p in posts.values():
-        all_items.append({
-            "title": p["title"], "url": p["slug"], "date": p["date"],
-            "date_exact": p["date_exact"], "source": p["source"],
-            "excerpt": p.get("excerpt", ""), "inkhaven": p.get("inkhaven", False),
-            "folder": p.get("folder"), "external": False,
-        })
+    all_items = [{
+        "title": p["title"], "url": p["slug"], "date": p["date"], "date_kind": p["date_kind"],
+        "source": p["source"], "excerpt": p.get("excerpt", ""), "inkhaven": p.get("inkhaven", False),
+        "folder": p.get("folder"), "external": False} for p in posts.values()]
+
     def norm_title(t):
         return re.sub(r"[^a-z0-9]", "", t.lower())
 
@@ -637,80 +690,76 @@ def build():
     for it in external:
         if norm_title(it["title"]) in essay_titles:
             continue  # cross-post of an essay; the doc version wins
-        all_items.append({**it, "external": True, "date_exact": True,
+        all_items.append({**it, "external": True, "date_kind": "published",
                           "inkhaven": False, "folder": None})
     all_items.sort(key=lambda x: x["date"] or "0000", reverse=True)
 
-    featured_cards = []
+    selected = []
     for entry in CONFIG.get("featured", []):
-        if isinstance(entry, dict):  # external item: {title, url, excerpt?}
-            featured_cards.append(
-                f'<a class="card" href="{esc(entry["url"])}" target="_blank" rel="noopener">'
-                f'<h3>{esc(entry["title"])}</h3>'
-                f'<p>{esc(entry.get("excerpt", ""))}</p></a>')
-            continue
-        p = posts.get(entry)
-        if not p:
-            warn(f"featured slug '{entry}' not found")
-            continue
-        featured_cards.append(
-            f'<a class="card" href="{esc(entry)}"><h3>{esc(p["title"])}</h3>'
-            f'<p>{esc(p.get("excerpt", ""))}</p></a>')
-    featured_html = (f'<section id="featured"><h2>Selected work</h2>'
-                     f'<div class="cards">{"".join(featured_cards)}</div></section>'
-                     if featured_cards else "")
+        if isinstance(entry, str):  # a post slug
+            p = posts.get(entry)
+            if not p:
+                warn(f"featured slug '{entry}' not found")
+                continue
+            href, title, ext = entry, p["title"], ""
+            note = " · ".join(x for x in [month_year(p["date"]), "Inkhaven" if p.get("inkhaven") else ""] if x)
+        else:  # external item: {title, url, excerpt}
+            href, title, note = entry["url"], entry["title"], entry.get("excerpt", "")
+            ext = ' target="_blank" rel="noopener"'
+        arrow = '<span class="ext" aria-hidden="true">↗</span>' if ext else ""
+        selected.append(f'<li><a href="{esc(href)}"{ext}>{esc(title)}{arrow}</a>'
+                        f'<span class="note">{esc(note)}</span></li>')
 
-    rows = []
-    last_year = None
+    rows, last_year = [], None
     for it in all_items:
         year = (it["date"] or "")[:4]
         if year and year != last_year:
-            rows.append(f'<li class="year-sep" aria-hidden="true">{year}</li>')
+            rows.append(f'<li class="year" aria-hidden="true">{year}</li>')
             last_year = year
-        badge = {"essay": "essay", "substack": "substack", "note": "note"}[it["source"]]
-        extra = ' <span class="badge inkhaven" title="Written during the Inkhaven residency">inkhaven</span>' if it["inkhaven"] else ""
+        try:
+            d = datetime.strptime(it["date"], "%Y-%m-%d")
+            when = d.strftime("%b") if it["date_kind"] == "updated" else d.strftime("%b %-d")
+        except Exception:  # noqa: BLE001
+            when = ""
+        tags = []
+        if it["external"]:
+            label = {"substack": "Substack", "note": "Notes"}[it["source"]]
+            tags.append(f'<span class="tag">{label}<span aria-hidden="true"> ↗</span></span>')
+        if it["inkhaven"]:
+            tags.append('<span class="tag" title="Written during or after the Inkhaven residency">Inkhaven</span>')
         if it["folder"]:
-            extra += f' <span class="badge">{esc(it["folder"].lower())}</span>'
+            tags.append(f'<span class="tag">{esc(it["folder"])}</span>')
+        if it["date_kind"] == "updated":
+            tags.append('<span class="tag" title="Date of last edit">updated</span>')
         ext = ' target="_blank" rel="noopener"' if it["external"] else ""
-        date_disp = month_year(it["date"]) if it["date"] else ""
-        if not it["date_exact"]:
-            date_disp = f'<span title="Last modified date">upd. {date_disp}</span>'
-        excerpt = f'<p class="excerpt">{esc(it["excerpt"])}</p>' if it.get("excerpt") else ""
         slug_attr = f' data-slug="{esc(it["url"])}"' if not it["external"] else ""
         rows.append(
-            f'<li class="post" data-source="{badge}" data-title="{esc(it["title"].lower())}"{slug_attr}>'
-            f'<a class="post-link" href="{esc(it["url"])}"{ext}>'
-            f'<span class="post-title">{esc(it["title"])}</span>'
-            f'<span class="post-meta"><span class="badge {badge}">{badge}</span>{extra}'
-            f'<time>{date_disp}</time></span></a>{excerpt}</li>')
+            f'<li class="row" data-source="{it["source"]}" data-title="{esc(it["title"].lower())}"{slug_attr}>'
+            f'<time datetime="{it["date"] or ""}">{when}</time>'
+            f'<a href="{esc(it["url"])}"{ext}>{esc(it["title"])}</a>'
+            f'<span class="tags">{"".join(tags)}</span></li>')
 
-    proj_cards = "".join(
-        f'<a class="card" href="{esc(p["url"])}" target="_blank" rel="noopener">'
-        f'<h3>{esc(p["title"])}</h3><p>{esc(p["description"])}</p></a>'
+    projects = "".join(
+        f'<li><a href="{esc(p["url"])}" target="_blank" rel="noopener">{esc(p["title"])}'
+        f'<span class="ext" aria-hidden="true">↗</span></a><p>{esc(p["description"])}</p></li>'
         for p in CONFIG["projects"])
 
-    counts = {"all": len(all_items),
-              "essay": sum(1 for i in all_items if i["source"] == "essay"),
-              "substack": sum(1 for i in all_items if i["source"] == "substack"),
-              "note": sum(1 for i in all_items if i["source"] == "note")}
-
+    counts = {k: sum(1 for i in all_items if k == "all" or i["source"] == k)
+              for k in ("all", "essay", "substack", "note")}
     index = render(template("index.html"),
-                   SITE_TITLE=esc(site["title"]),
-                   DESCRIPTION=esc(site["description"]),
-                   CANONICAL=BASE_URL + "/",
-                   BIO=CONFIG["bio"],
-                   NAV=nav,
-                   FEATURED=featured_html,
-                   POSTS="\n".join(rows),
-                   PROJECTS=proj_cards,
+                   HEAD=head_common(""), HEADER=header_html(""), FOOTER=footer_html(""),
+                   SITE_TITLE=esc(site["title"]), DESCRIPTION=esc(site["description"]),
+                   CANONICAL=BASE_URL + "/", OG_IMAGE=f"{BASE_URL}/og.png",
+                   NAME=esc(AUTHOR), BIO=CONFIG["bio"], SELECTED="\n".join(selected),
+                   POSTS="\n".join(rows), PROJECTS=projects,
                    COUNT_ALL=str(counts["all"]), COUNT_ESSAY=str(counts["essay"]),
-                   COUNT_SUBSTACK=str(counts["substack"]), COUNT_NOTE=str(counts["note"]),
-                   UPDATED=datetime.now(timezone.utc).strftime("%d %b %Y"))
+                   COUNT_SUBSTACK=str(counts["substack"]), COUNT_NOTE=str(counts["note"]))
     open(os.path.join(DIST, "index.html"), "w").write(index)
 
-    # ---- 404, blog redirect, robots, sitemap
-    open(os.path.join(DIST, "404.html"), "w").write(
-        render(template("404.html"), SITE_TITLE=esc(site["title"]), BASE=BASE_URL))
+    # ---- 404, blog redirect, robots, sitemap, feeds, indexes
+    open(os.path.join(DIST, "404.html"), "w").write(render(
+        template("404.html"), HEAD=head_common(BASE_URL + "/"),
+        HEADER=header_html(BASE_URL + "/"), FOOTER=footer_html(BASE_URL + "/"), BASE=BASE_URL))
     open(os.path.join(DIST, "blog.html"), "w").write(
         f'<!doctype html><meta http-equiv="refresh" content="0;url={BASE_URL}/">')
     open(os.path.join(DIST, "robots.txt"), "w").write(
@@ -718,15 +767,13 @@ def build():
     urls = [(f"{BASE_URL}/", None), (f"{BASE_URL}/cv", None)]
     for p in posts.values():
         urls.append((f"{BASE_URL}/{p['slug']}", p["date"]))
-        if p.get("has_reader"):
+        if p.get("has_article") and p.get("tab_count", 1) == 1:
             urls.append((f"{BASE_URL}/reader/{p['slug']}", p["date"]))
-    sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n' \
-              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + \
-              "\n".join(f"  <url><loc>{esc(u)}</loc>"
-                        + (f"<lastmod>{d}</lastmod>" if d else "") + "</url>"
-                        for u, d in urls) + "\n</urlset>\n"
-    open(os.path.join(DIST, "sitemap.xml"), "w").write(sitemap)
-
+    open(os.path.join(DIST, "sitemap.xml"), "w").write(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "\n".join(f"  <url><loc>{esc(u)}</loc>" + (f"<lastmod>{d}</lastmod>" if d else "")
+                    + "</url>" for u, d in urls) + "\n</urlset>\n")
     open(os.path.join(DIST, "feed.xml"), "w").write(build_rss(all_items, site))
     json.dump([{"slug": p["slug"], "title": p["title"]} for p in posts.values()],
               open(os.path.join(DIST, "posts.json"), "w"))
@@ -734,28 +781,27 @@ def build():
               open(os.path.join(DIST, "search.json"), "w"))
     make_og_image()
     make_touch_icon()
-
     json.dump(report, open(os.path.join(DIST, "build_report.json"), "w"), indent=1)
 
     # Sanity gate: refuse to ship an obviously broken build (Pages then keeps
     # serving the previous deploy).
     essays = sum(1 for i in all_items if i["source"] == "essay")
-    readers = len(os.listdir(os.path.join(DIST, "reader")))
+    articles = sum(1 for p in posts.values() if p.get("has_article"))
     problems = []
     if essays < 40:
         problems.append(f"only {essays} essays (expected >=40)")
     if len(all_items) < 60:
         problems.append(f"only {len(all_items)} posts (expected >=60)")
-    if readers < 40:
-        problems.append(f"only {readers} reader pages (expected >=40)")
+    if articles < 40:
+        problems.append(f"only {articles} docs exported (expected >=40)")
     if os.path.getsize(os.path.join(DIST, "index.html")) < 20_000:
         problems.append("index.html suspiciously small")
     if problems:
         print("BUILD REJECTED: " + "; ".join(problems), file=sys.stderr)
         sys.exit(1)
 
-    pub_count = sum(1 for d in report["docs"].values() if d["published"])
-    print(f"Done: {len(all_items)} posts ({pub_count}/{len(report['docs'])} docs published-to-web), "
+    pub = sum(1 for d in report["docs"].values() if d["published"])
+    print(f"Done: {len(all_items)} posts ({pub}/{len(report['docs'])} docs published-to-web), "
           f"{len(report['warnings'])} warnings -> dist/")
 
 

@@ -1,13 +1,15 @@
 (function () {
-  var tabs = document.querySelectorAll('.tab');
+  var filters = document.querySelectorAll('.filter');
   var search = document.getElementById('search');
-  var posts = document.querySelectorAll('.post');
+  var rows = document.querySelectorAll('.index .row');
+  var years = document.querySelectorAll('.index .year');
+  var empty = document.querySelector('.empty');
   var filter = 'all';
-  var fullText = null;   // slug -> lowercase doc text, lazy-loaded on first search
+  var fullText = null;   // slug -> lowercase doc text, fetched on first search
 
   function loadIndex() {
     if (fullText !== null) return;
-    fullText = {};       // sentinel so we fetch once
+    fullText = {};
     fetch('search.json')
       .then(function (r) { return r.json(); })
       .then(function (d) { fullText = d; apply(); })
@@ -15,51 +17,47 @@
   }
 
   function apply() {
-    var q = (search.value || '').toLowerCase().trim();
-    posts.forEach(function (p) {
-      var okSource = filter === 'all' || p.dataset.source === filter;
-      var okText = !q || p.dataset.title.indexOf(q) !== -1 ||
-        (p.dataset.slug && fullText && (fullText[p.dataset.slug] || '').indexOf(q) !== -1);
-      p.classList.toggle('hidden', !(okSource && okText));
+    var q = (search && search.value || '').toLowerCase().trim();
+    var shown = 0;
+    rows.forEach(function (r) {
+      var ok = (filter === 'all' || r.dataset.source === filter) &&
+        (!q || r.dataset.title.indexOf(q) !== -1 ||
+         (r.dataset.slug && fullText && (fullText[r.dataset.slug] || '').indexOf(q) !== -1));
+      r.hidden = !ok;
+      if (ok) shown++;
     });
-    document.querySelectorAll('.year-sep').forEach(function (sep) {
-      var el = sep.nextElementSibling, any = false;
-      while (el && !el.classList.contains('year-sep')) {
-        if (el.classList.contains('post') && !el.classList.contains('hidden')) {
-          any = true;
-          break;
-        }
+    years.forEach(function (y) {
+      var el = y.nextElementSibling, any = false;
+      while (el && !el.classList.contains('year')) {
+        if (!el.hidden) { any = true; break; }
         el = el.nextElementSibling;
       }
-      sep.classList.toggle('hidden', !any);
+      y.hidden = !any;
     });
+    if (empty) empty.hidden = shown > 0;
   }
 
-  document.addEventListener('keydown', function (e) {
-    if (e.key === '/' && search && document.activeElement !== search &&
-        !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
-      e.preventDefault();
-      search.focus();
-    }
-  });
-
-  tabs.forEach(function (t) {
-    t.setAttribute('aria-pressed', t.classList.contains('active') ? 'true' : 'false');
-    t.addEventListener('click', function () {
-      tabs.forEach(function (x) {
+  filters.forEach(function (b) {
+    b.addEventListener('click', function () {
+      filters.forEach(function (x) {
         x.classList.remove('active');
         x.setAttribute('aria-pressed', 'false');
       });
-      t.classList.add('active');
-      t.setAttribute('aria-pressed', 'true');
-      filter = t.dataset.filter;
+      b.classList.add('active');
+      b.setAttribute('aria-pressed', 'true');
+      filter = b.dataset.filter;
       apply();
     });
   });
+
   if (search) {
-    search.addEventListener('input', function () {
-      loadIndex();
-      apply();
+    search.addEventListener('input', function () { loadIndex(); apply(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === '/' && document.activeElement !== search &&
+          !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+        e.preventDefault();
+        search.focus();
+      }
     });
   }
 })();

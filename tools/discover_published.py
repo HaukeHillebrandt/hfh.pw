@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""Discover published-to-web links for all site docs via the Drive API.
+"""Refresh Drive metadata for all site docs via the Drive API (read-only).
 
-Read-only: queries each doc's revisions for `publishedLink` (the canonical
-2PACX pub URL) using the locally-authenticated `gws` CLI. Never changes any
-doc's sharing or publication state.
+Uses the locally-authenticated `gws` CLI; never changes any doc's sharing or
+publication state. The GitHub Action has no Google credentials, so run this
+locally and commit the outputs:
 
-Run locally when docs' publication status changes, then commit the output:
     python3 tools/discover_published.py
-Output: data/published_links.json  {docId: {"url": ..., "publishAuto": bool}}
+
+Outputs:
+  data/published_links.json  {docId: {"url": 2PACX pub URL, "publishAuto": bool}}
+      Canonical published-to-web links (some published docs 401 on the
+      anonymous ID-based pub endpoint).
+  data/doc_meta.json         {docId: {"created": ISO date, "name": str}}
+      Creation dates, used to date Drive docs that have no known publication
+      date. Docs added later fall back to the folder's last-modified date
+      until the next run.
 """
 import json
 import os
@@ -37,16 +44,17 @@ def collect_doc_ids():
     return sorted(ids)
 
 
-def query(doc_id):
-    params = json.dumps({"fileId": doc_id,
-                         "fields": "revisions(published,publishAuto,publishedLink)"})
+def gws(args):
+    out = subprocess.run(["gws"] + args, capture_output=True, text=True, timeout=60)
+    return json.loads(out.stdout[out.stdout.index("{"):])
+
+
+def query_published(doc_id):
     try:
-        out = subprocess.run(
-            ["gws", "drive", "revisions", "list", "--params", params],
-            capture_output=True, text=True, timeout=60)
-        data = json.loads(out.stdout[out.stdout.index("{"):])
+        data = gws(["drive", "revisions", "list", "--params", json.dumps(
+            {"fileId": doc_id, "fields": "revisions(published,publishAuto,publishedLink)"})])
     except Exception as e:  # noqa: BLE001
-        print(f"  {doc_id}: ERROR {e}", file=sys.stderr)
+        print(f"  {doc_id}: revisions ERROR {e}", file=sys.stderr)
         return None
     for rev in reversed(data.get("revisions", [])):
         if rev.get("published") and rev.get("publishedLink"):
@@ -55,19 +63,36 @@ def query(doc_id):
     return None
 
 
+def query_meta(doc_id):
+    try:
+        data = gws(["drive", "files", "get", "--params", json.dumps(
+            {"fileId": doc_id, "fields": "name,createdTime"})])
+        return {"created": data["createdTime"][:10], "name": data["name"]}
+    except Exception as e:  # noqa: BLE001
+        print(f"  {doc_id}: meta ERROR {e}", file=sys.stderr)
+        return None
+
+
 def main():
     ids = collect_doc_ids()
     print(f"querying {len(ids)} docs…")
-    links = {}
+    links, meta = {}, {}
     for i, did in enumerate(ids, 1):
-        r = query(did)
+        r = query_published(did)
         if r:
             links[did] = r
-        print(f"  [{i}/{len(ids)}] {did[:12]}… {'published' if r else '-'}")
-    path = os.path.join(ROOT, "data", "published_links.json")
-    json.dump(links, open(path, "w"), indent=1, sort_keys=True)
+        m = query_meta(did)
+        if m:
+            meta[did] = m
+        print(f"  [{i}/{len(ids)}] {did[:12]}… {'published' if r else '-':9s} "
+              f"{m['created'] if m else '?'}")
+    json.dump(links, open(os.path.join(ROOT, "data", "published_links.json"), "w"),
+              indent=1, sort_keys=True)
+    json.dump(meta, open(os.path.join(ROOT, "data", "doc_meta.json"), "w"),
+              indent=1, sort_keys=True, ensure_ascii=False)
     auto = sum(1 for v in links.values() if v["publishAuto"])
-    print(f"done: {len(links)}/{len(ids)} published ({auto} auto-republish) -> {path}")
+    print(f"done: {len(links)}/{len(ids)} published ({auto} auto-republish), "
+          f"{len(meta)} creation dates")
 
 
 if __name__ == "__main__":

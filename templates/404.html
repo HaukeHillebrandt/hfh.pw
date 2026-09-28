@@ -3,24 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Not found — {{SITE_TITLE}}</title>
-<link rel="icon" href="{{BASE}}/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="{{BASE}}/style.css">
+<title>Not found — Hauke Hillebrandt</title>
+{{HEAD}}
 </head>
 <body>
-<header class="site-header">
-  <div class="wrap">
-    <a class="site-name" href="{{BASE}}/">Hauke Hillebrandt</a>
-  </div>
-</header>
-<main class="wrap">
-  <section class="hero">
-    <h1>Page not found</h1>
-    <p class="bio">This page doesn’t exist (or moved). Try the <a href="{{BASE}}/">homepage</a> —
-    everything is listed there.</p>
-    <p class="bio" id="suggestion" hidden>Did you mean <a id="suggestion-link" href=""></a>?</p>
-  </section>
+{{HEADER}}
+<main class="wrap notfound">
+  <h1>Page not found</h1>
+  <p>This page doesn’t exist or has moved. Everything is listed on the <a href="{{BASE}}/">homepage</a>.</p>
+  <p id="suggestion" hidden>Were you looking for <a id="suggestion-link" href=""></a>?</p>
 </main>
+{{FOOTER}}
 <script>
 (function () {
   var want = location.pathname.split('/').pop().replace(/\.html$/, '').toLowerCase();

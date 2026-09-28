@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#23508f"/>
-  <text x="16" y="23" font-family="Georgia, serif" font-size="19" font-weight="bold"
-        fill="#faf9f6" text-anchor="middle">H</text>
+  <rect width="32" height="32" rx="6" fill="#1f3fe0"/>
+  <text x="16" y="22.6" text-anchor="middle" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+        font-size="19" font-weight="700" fill="#ffffff">H</text>
 </svg>

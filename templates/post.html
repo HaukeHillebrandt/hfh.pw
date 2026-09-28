@@ -11,21 +11,18 @@
 <meta property="og:type" content="article">
 <meta property="og:image" content="{{OG_IMAGE}}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#16150f" media="(prefers-color-scheme: dark)">
+{{HEAD}}
 <link rel="preconnect" href="https://docs.google.com">
 {{JSONLD}}
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
 </head>
 <body class="doc-page">
 <header class="doc-bar">
-  <a class="site-name" href="./">Hauke Hillebrandt</a>
-  <span class="doc-title" title="{{TITLE}}">{{TITLE}}<span class="doc-date"> · {{DATE}}</span></span>
-  <span class="doc-actions">
+  <a class="wordmark" href="./"><span class="mark" aria-hidden="true"></span><span class="wm-text">Hauke Hillebrandt</span></a>
+  <p class="doc-title"><strong>{{TITLE}}</strong> <span class="doc-date">{{DATE}}</span></p>
+  <div class="doc-actions">
     {{READER_LINK}}
-    <a class="btn primary" href="{{DOC_URL}}" target="_blank" rel="noopener">Open in Google Docs ↗</a>
-  </span>
+    <a class="btn primary" href="{{DOC_URL}}" target="_blank" rel="noopener">Open in Google Docs <span aria-hidden="true">↗</span></a>
+  </div>
 </header>
 <iframe class="{{FRAME_CLASS}}" src="{{EMBED_URL}}" title="{{TITLE}}" loading="eager"
         sandbox="allow-scripts allow-popups allow-forms allow-same-origin allow-popups-to-escape-sandbox allow-downloads allow-modals"></iframe>

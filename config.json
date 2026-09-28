@@ -7,14 +7,18 @@
     "author": "Hauke Hillebrandt",
     "email": "hauke.hillebrandt@gmail.com"
   },
-  "bio": "Researcher and CEO of the Center for Applied Utilitarianism (<a href=\"https://lets-fund.org\">Let's Fund</a>). Previously: Center for Global Development, Centre for Effective Altruism (Oxford), Moral Cognition Lab (Harvard), PhD (UCL).",
+  "bio": "Researcher working on AI governance, economic growth and effective philanthropy. 2026 Seasonal Fellow at the <a href=\"https://www.governance.ai\">Centre for the Governance of AI</a> and CEO of the Center for Applied Utilitarianism (<a href=\"https://lets-fund.org\">Let's Fund</a>). Previously at the Center for Global Development, the Centre for Effective Altruism in Oxford and Harvard's Moral Cognition Lab; PhD in cognitive neuroscience, UCL.",
   "nav_links": [
+    {"label": "Writing", "href": "#writing"},
+    {"label": "Projects", "href": "#projects"},
+    {"label": "CV", "href": "cv"},
     {"label": "Substack", "url": "https://hauke.substack.com"},
-    {"label": "GitHub", "url": "https://github.com/HaukeHillebrandt"},
-    {"label": "CV", "url": "cv"}
+    {"label": "EA Forum", "url": "https://forum.effectivealtruism.org/users/haukehillebrandt"},
+    {"label": "GitHub", "url": "https://github.com/HaukeHillebrandt"}
   ],
   "drive_folder_id": "1fh8-FbNMdqp6ULXb_QnzhXeauPzVjzls",
   "cv_doc_id": "1QE-N4y39YYESD1bfq7jBhCSg4tirfaDbVZZrLEnGSrA",
+  "eaforum_user_id": "qptXbY4PtHXby7S2i",
   "feeds": {
     "substack": "https://hauke.substack.com/feed",
     "bearblog": "https://hauke.bearblog.dev/feed/?type=rss",
@@ -65,7 +69,7 @@
     {
       "title": "Diversifying AI Ownership",
       "url": "https://haukehillebrandt.github.io/ai-ownership/",
-      "description": "The working paper as a long-form essay site, with a companion note on Bostrom's Open Global Investment model."
+      "description": "Part I of the working paper as a long-form essay site, with a companion note on Bostrom's Open Global Investment model."
     },
     {
       "title": "AI Policy Forecasting Questions",
