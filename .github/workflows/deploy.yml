@@ -20,8 +20,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Install Pillow (image optimization)
@@ -33,8 +33,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/cache
-          git diff --cached --quiet || { git commit -m "Refresh feed cache [skip ci]" && git push; }
-      - uses: actions/upload-pages-artifact@v3
+          git diff --cached --quiet || { git commit -m "Refresh feed cache [skip ci]" && { git push || { git pull --rebase -q && git push; }; }; }
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
   deploy:
@@ -45,8 +45,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
       - name: Retry deploy (Pages is occasionally flaky)
         if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
