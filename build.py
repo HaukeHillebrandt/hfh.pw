@@ -188,24 +188,6 @@ def parse_rss(xml):
     return items
 
 
-def fetch_substack():
-    """Substack posts from the RSS feed, or from the archive API when the feed is blocked."""
-    feed = CONFIG["feeds"]["substack"]
-    try:
-        return parse_rss(fetch(feed))
-    except Exception as feed_err:  # noqa: BLE001
-        api = feed.rsplit("/feed", 1)[0] + "/api/v1/archive?sort=new&offset=0&limit=50"
-        try:
-            posts = json.loads(fetch(api))
-        except Exception as api_err:  # noqa: BLE001
-            raise RuntimeError(f"feed: {feed_err}; archive API: {api_err}") from None
-        print(f"  substack: feed failed ({feed_err}); used the archive API")
-        return [{"title": p["title"].strip(), "url": p["canonical_url"],
-                 "date": (p.get("post_date") or "")[:10] or None,
-                 "excerpt": (p.get("description") or p.get("subtitle") or "").strip()[:220]}
-                for p in posts if p.get("canonical_url")]
-
-
 # ---------------------------------------------------------------- doc probing
 
 def probe_doc(doc):
@@ -370,7 +352,8 @@ def collect_posts():
     except Exception as e:  # noqa: BLE001
         warn(f"EA Forum lookup failed: {e}")
     try:
-        for it in cached_json("substack", fetch_substack):
+        for it in cached_json("substack",
+                              lambda: parse_rss(fetch(CONFIG["feeds"]["substack"]))):
             if it["url"].rstrip("/") == "https://hauke.substack.com":
                 continue
             external.append({**it, "source": "substack"})

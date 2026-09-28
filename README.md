@@ -8,7 +8,8 @@ Personal site of Hauke Hillebrandt, built as a static site around **live Google 
   - the public Drive folder listing (`embeddedfolderview`) — every doc you drag into the
     [Drive folder](https://drive.google.com/drive/folders/1fh8-FbNMdqp6ULXb_QnzhXeauPzVjzls)
     becomes a post automatically
-  - Substack RSS, Bearblog RSS
+  - Substack RSS, Bearblog RSS (Substack blocks GitHub's servers, so the Action uses
+    the committed copy in `data/cache/substack.json`; see "Local refreshes" below)
 - **Only a doc's first tab is shown.** Put notes, drafts and appendices in later tabs:
   they stay reachable via "Open in Google Docs" but never appear on the site
   (pages, excerpts or search).
@@ -30,14 +31,23 @@ Personal site of Hauke Hillebrandt, built as a static site around **live Google 
   (Actions → "Build and deploy site" → Run workflow, or
   `gh workflow run deploy.yml -R HaukeHillebrandt/hfh.pw`).
 
-## Drive metadata (run locally)
+## Local refreshes
 
-The Action has no Google credentials, so after publishing docs to the web or adding
-new ones, refresh the metadata with the authenticated `gws` CLI (read-only) and push:
+Two things only update from your own machine, because Substack returns 403 to GitHub's
+servers (both the RSS feed and its JSON API) and the Action has no Google credentials:
 
-```sh
-python3 tools/discover_published.py   # writes data/published_links.json + data/doc_meta.json
-```
+- **New Substack posts:** run a local build and push the refreshed feed cache:
+
+  ```sh
+  python3 build.py && git add data/cache && git commit -m "Refresh feed cache" && git push
+  ```
+
+- **Drive metadata:** after publishing docs to the web or adding new ones, refresh it
+  with the authenticated `gws` CLI (read-only), then commit and push:
+
+  ```sh
+  python3 tools/discover_published.py   # writes data/published_links.json + data/doc_meta.json
+  ```
 
 `tools/publish_to_web.py --apply` publishes every unpublished site doc to the web
 (it changes publication state, so only run it deliberately).
