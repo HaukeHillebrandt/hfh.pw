@@ -178,6 +178,23 @@ def parse_rss(xml):
 
 # ---------------------------------------------------------------- doc probing
 
+COMMENT_ANCHOR_RE = re.compile(
+    r'(?:<sup>\s*)?<a href="#cmnt\d+" id="cmnt_ref\d+">\[\w+\]</a>(?:\s*</sup>)?')
+COMMENT_BODY_RE = re.compile(
+    r'<div[^>]*>\s*<p[^>]*>\s*<a href="#cmnt_ref\d+" id="cmnt\d+">.*?</div>', re.S)
+
+
+def strip_comments(export_html):
+    """Drop doc comment threads from Google's HTML export.
+
+    The export includes comments that link-viewers of the doc never see;
+    publishing them would leak private review discussion.
+    """
+    if not export_html:
+        return export_html
+    return COMMENT_BODY_RE.sub("", COMMENT_ANCHOR_RE.sub("", export_html))
+
+
 def probe_doc(doc):
     """Decide embed endpoint for a Google Doc and fetch its exported HTML."""
     did = doc["doc_id"]
@@ -540,7 +557,7 @@ def build():
         for slug, fut in probes.items():
             r = fut.result()
             posts[slug]["published"] = r["published"]
-            posts[slug]["_export"] = r["export_html"]
+            posts[slug]["_export"] = strip_comments(r["export_html"])
             report["docs"][slug] = {"published": r["published"],
                                     "has_export": bool(r["export_html"]),
                                     "restricted": r["restricted"]}
