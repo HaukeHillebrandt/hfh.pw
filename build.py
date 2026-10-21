@@ -319,7 +319,8 @@ def collect_posts():
         posts[slug] = {
             "slug": slug, "title": info["title"], "date": info["date"],
             "date_kind": "published", "doc_id": doc_id, "kind": kind,
-            "source": "essay", "inkhaven": info["date"] >= "2025-11-01",
+            "source": "essay",
+            "inkhaven": info.get("inkhaven", info["date"] >= "2025-11-01"),
         }
 
     # 2. Other Drive-folder docs, dated by creation (or last edit if unknown)
