@@ -504,7 +504,7 @@ def make_og_image(title=None, out_name="og.png"):
         d.text((80, 230), AUTHOR, font=_font(84), fill="#ffffff")
         d.text((82, 350), "AI governance · economic growth · effective philanthropy",
                font=_font(34, 500), fill=MUTED)
-    d.text((80, 536), "hfh.pw", font=small, fill=MUTED)
+    d.text((80, 536), "hauke.uk", font=small, fill=MUTED)
     path = os.path.join(DIST, out_name)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     im.save(path, "PNG", optimize=True)
