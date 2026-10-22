@@ -13,11 +13,10 @@ Personal site of Hauke Hillebrandt, built as a static site around **live Google 
 - **Only a doc's first tab is shown.** Put notes, drafts and appendices in later tabs:
   they stay reachable via "Open in Google Docs" but never appear on the site
   (pages, excerpts or search).
-  - **Single-tab docs:** `/<slug>` embeds the live doc (`/pub?embedded=true` when
-    published-to-web, else `/preview`), so edits show within minutes;
-    `/reader/<slug>` is a typeset article of the same doc.
-  - **Multi-tab docs:** `/<slug>` is a typeset article of the first tab (Google's live
-    views can't be limited to one tab neatly), so edits show on the next rebuild.
+  - `/<slug>` is a typeset article of the first tab, exported at build time, so edits
+    show on the next rebuild. `/reader/<slug>` redirects to it.
+  - Files without an HTML export (Word/PDF, restricted docs) embed the live file
+    instead (`/pub?embedded=true` when published-to-web, else `/preview`).
 - Rendering (`docrender.py`) strips private comment threads, Google's inserted tables
   of contents and "Listen to this tab" artefacts, and promotes the doc's own title.
   The same file is copied into the `ai-ownership` repo; keep the two in sync.
@@ -60,23 +59,20 @@ cd dist && python3 -m http.server 8899
 # note: local server needs .html extensions; GitHub Pages resolves /slug -> slug.html
 ```
 
-## Pointing www.hfh.pw here (when ready)
+## Domains
 
-1. In this repo: add a file `static/CNAME` containing exactly `www.hfh.pw`, commit, push.
-2. On GitHub: repo → Settings → Pages → Custom domain → `www.hfh.pw`, save.
-   Enable "Enforce HTTPS" once the certificate is issued.
-3. At your DNS provider for `hfh.pw`:
-   - `www` → CNAME → `haukehillebrandt.github.io`
-   - apex `hfh.pw` → A records → `185.199.108.153`, `185.199.109.153`,
-     `185.199.110.153`, `185.199.111.153` (or ALIAS to `haukehillebrandt.github.io`)
-4. Update `base_url` in `config.json` to `https://www.hfh.pw` and push.
-5. Unpublish the Google Site once the new site is live on the domain.
+- The site lives at **https://hauke.uk** (GitHub Pages custom domain, `static/CNAME`,
+  `base_url` in `config.json`). DNS is on Cloudflare: the four GitHub Pages A/AAAA
+  records on the apex and `www` → CNAME → `haukehillebrandt.github.io`, all DNS only.
+- **hfh.pw** and **www.hfh.pw** forward to hauke.uk with a 301 that keeps the path
+  (Squarespace domain forwarding), so old links such as `hfh.pw/ClaudeMaxxing` still work.
+  The Mailgun email forwarding records on hfh.pw are unchanged.
 
 ## Publishing notes
 
-- Single-tab docs that are **published to the web** (File → Share → Publish to web,
-  with "automatically republish" on) get the cleaner `pub` embed; unpublished but
-  link-shared docs fall back to the paginated `preview` embed.
+- Docs that are **published to the web** (File → Share → Publish to web, with
+  "automatically republish" on) get the cleaner `pub` embed when they fall back to a
+  live embed; unpublished but link-shared docs use the paginated `preview` embed.
   `dist/build_report.json` lists each doc's publication state and tab count.
 - Word/PDF files in the Drive folder work too (embedded via the Drive file previewer).
 - Design: white / near-black, Inter (fonts in `assets/fonts` for the social cards,
