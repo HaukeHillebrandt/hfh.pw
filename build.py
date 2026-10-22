@@ -5,11 +5,9 @@ Fetches content from Google Drive (public folder listing), Substack and
 Bearblog, then renders a static site into dist/.
 
 Every Google Doc shows its first tab only (other tabs stay reachable in
-Google Docs):
-  - single-tab docs: /<slug> embeds the live doc (edits show within minutes),
-                     /reader/<slug> is a typeset article of it
-  - multi-tab docs : /<slug> is a typeset article of the first tab (Google's
-                     live views can't be limited to one tab neatly)
+Google Docs): /<slug> is a typeset article of that tab, exported at build
+time, and /reader/<slug> redirects to it. Files without an HTML export
+(Word/PDF, restricted docs) fall back to a live embed.
 
 Stdlib only; Pillow (optional) for images and social cards.
 """
@@ -659,7 +657,7 @@ def build():
         canonical = f"{BASE_URL}/{post['slug']}"
         top = os.path.join(DIST, f"{post['slug']}.html")
         reader = os.path.join(DIST, "reader", f"{post['slug']}.html")
-        if export_html and post.get("tab_count", 1) > 1:
+        if export_html:
             open(top, "w").write(article_page(post, export_html, "", canonical, None))
             open(reader, "w").write(
                 f'<!doctype html><meta charset="utf-8"><link rel="canonical" href="{canonical}">'
@@ -671,7 +669,7 @@ def build():
             if export_html:
                 open(reader, "w").write(
                     article_page(post, export_html, "../", canonical, f"../{post['slug']}"))
-    print(f"  {n_articles} multi-tab docs rendered as articles, {n_frames} live embeds")
+    print(f"  {n_articles} docs rendered as articles, {n_frames} live embeds")
 
     # ---- CV page (live embed)
     cv = {"slug": "cv", "title": "CV", "doc_id": CONFIG["cv_doc_id"], "kind": "doc",
@@ -768,8 +766,6 @@ def build():
     urls = [(f"{BASE_URL}/", None), (f"{BASE_URL}/cv", None)]
     for p in posts.values():
         urls.append((f"{BASE_URL}/{p['slug']}", p["date"]))
-        if p.get("has_article") and p.get("tab_count", 1) == 1:
-            urls.append((f"{BASE_URL}/reader/{p['slug']}", p["date"]))
     open(os.path.join(DIST, "sitemap.xml"), "w").write(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
