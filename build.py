@@ -749,7 +749,8 @@ def build():
                    HEAD=head_common(""), HEADER=header_html(""), FOOTER=footer_html(""),
                    SITE_TITLE=esc(site["title"]), DESCRIPTION=esc(site["description"]),
                    CANONICAL=BASE_URL + "/", OG_IMAGE=f"{BASE_URL}/og.png",
-                   NAME=esc(AUTHOR), BIO=CONFIG["bio"], SELECTED="\n".join(selected),
+                   NAME=esc(AUTHOR), BIO=CONFIG["bio"],
+                   PRONUNCIATION=CONFIG["pronunciation"], SELECTED="\n".join(selected),
                    POSTS="\n".join(rows), PROJECTS=projects,
                    COUNT_ALL=str(counts["all"]), COUNT_ESSAY=str(counts["essay"]),
                    COUNT_SUBSTACK=str(counts["substack"]), COUNT_NOTE=str(counts["note"]))

@@ -87,6 +87,7 @@ a:hover .ext { color: var(--accent); }
 }
 .bio { font-size: 19px; line-height: 1.55; color: var(--ink-2); max-width: 38em; margin: 0; }
 .bio a { text-decoration-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.pronunciation { font-size: 15px; color: var(--muted); margin: 12px 0 0; }
 
 section { padding-top: 56px; }
 .label {
